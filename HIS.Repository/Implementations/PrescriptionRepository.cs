@@ -82,9 +82,8 @@ namespace HIS.Repository.Implementations
         /// </summary>
         public async Task UpdateStatusAsync(long id, int status)
         {
-            await _dbSet
-                .Where(p => p.Id == id)
-                .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, status));
+            var p = await _dbSet.FirstOrDefaultAsync(p => p.Id == id);
+            if (p != null) { p.Status = status; await _context.SaveChangesAsync(); }
         }
     }
 }

@@ -61,37 +61,27 @@ namespace HIS.Repository.Implementations
 
         public async Task UpdateLoginInfoAsync(long userId, DateTime loginTime)
         {
-            await _dbSet
-                .Where(u => u.Id == userId)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(u => u.LastLoginTime, loginTime)
-                    .SetProperty(u => u.LoginFailedCount, 0)
-                    .SetProperty(u => u.LockoutEnd, (DateTime?)null));
+            var user = await _dbSet.Where(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user != null)
+            { user.LastLoginTime = loginTime; user.LoginFailedCount = 0; user.LockoutEnd = null; await _context.SaveChangesAsync(); }
         }
 
         public async Task IncreaseLoginFailedAsync(long userId)
         {
-            await _dbSet
-                .Where(u => u.Id == userId)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(u => u.LoginFailedCount, u => u.LoginFailedCount + 1));
+            var user = await _dbSet.Where(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user != null) { user.LoginFailedCount++; await _context.SaveChangesAsync(); }
         }
 
         public async Task LockAccountAsync(long userId, DateTime lockoutEnd)
         {
-            await _dbSet
-                .Where(u => u.Id == userId)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(u => u.LockoutEnd, lockoutEnd));
+            var user = await _dbSet.Where(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user != null) { user.LockoutEnd = lockoutEnd; await _context.SaveChangesAsync(); }
         }
 
         public async Task ResetLoginFailedAsync(long userId)
         {
-            await _dbSet
-                .Where(u => u.Id == userId)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(u => u.LoginFailedCount, 0)
-                    .SetProperty(u => u.LockoutEnd, (DateTime?)null));
+            var user = await _dbSet.Where(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user != null) { user.LoginFailedCount = 0; user.LockoutEnd = null; await _context.SaveChangesAsync(); }
         }
     }
 }

@@ -14,10 +14,11 @@ namespace HIS.Repository.Data
             // 确保数据库已创建
             context.Database.EnsureCreated();
 
-            // 关闭 IDENTITY 缓存：避免调试重启后 ID 跳号（每次跳 1000）
-            context.Database.ExecuteSqlRaw(
+            // 关闭 IDENTITY 缓存（仅 SQL Server；InMemory 跳过）
+            try { context.Database.ExecuteSqlRaw(
                 "IF EXISTS (SELECT 1 FROM sys.databases WHERE name = DB_NAME() AND is_read_only = 0) " +
-                "BEGIN TRY ALTER DATABASE SCOPED CONFIGURATION SET IDENTITY_CACHE = OFF; END TRY BEGIN CATCH END CATCH");
+                "BEGIN TRY ALTER DATABASE SCOPED CONFIGURATION SET IDENTITY_CACHE = OFF; END TRY BEGIN CATCH END CATCH"); }
+            catch (Exception) { /* InMemory / 非关系型数据库，跳过 */ }
 
             // 仅首次初始化时写入种子数据
             if (context.SysUsers.Any())
@@ -27,8 +28,9 @@ namespace HIS.Repository.Data
             }
             Console.WriteLine("[HIS Seed] 首次初始化，创建种子数据...");
 
-            // 使用事务确保数据一致性
-            using var transaction = context.Database.BeginTransaction();
+            // 使用事务确保数据一致性（InMemory 不支持事务，跳过）
+            var transaction = context.Database.IsRelational()
+                ? context.Database.BeginTransaction() : null;
             try
             {
                 // 1. 创建默认角色
@@ -397,11 +399,11 @@ namespace HIS.Repository.Data
                     context.SaveChanges();
                 }
 
-                transaction.Commit();
+                transaction?.Commit();
             }
             catch
             {
-                transaction.Rollback();
+                transaction?.Rollback();
                 throw;
             }
         }

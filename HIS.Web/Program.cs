@@ -16,6 +16,8 @@ namespace HIS.Web
             var builder = WebApplication.CreateBuilder(args);
 
             // ====== 数据库上下文 ======
+            // 连接串读取优先级：环境变量(ConnectionStrings__DefaultConnection) > User Secrets > appsettings.json
+            // 生产环境：同上，或通过 CI/CD 注入
             builder.Services.AddDbContext<HisDbContext>(options =>
                 options.UseSqlServer(
                     builder.Configuration.GetConnectionString("DefaultConnection"),

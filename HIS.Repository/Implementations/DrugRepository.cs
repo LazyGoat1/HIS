@@ -73,16 +73,11 @@ namespace HIS.Repository.Implementations
                 .ToListAsync();
         }
 
-        /// <summary>
-        /// 原子更新药品库存数量
-        /// 使用 ExecuteUpdate 避免并发问题
-        /// </summary>
+        /// <summary>更新药品库存（传统模式，兼容 InMemory）</summary>
         public async Task UpdateStockAsync(long drugId, int quantity)
         {
-            await _dbSet
-                .Where(d => d.Id == drugId)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(d => d.StockQuantity, quantity));
+            var drug = await _dbSet.FirstOrDefaultAsync(d => d.Id == drugId);
+            if (drug != null) { drug.StockQuantity = quantity; await _context.SaveChangesAsync(); }
         }
 
         /// <summary>递归获取指定分类的所有子孙分类ID</summary>
