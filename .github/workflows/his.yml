@@ -6,12 +6,12 @@ on:
   # 当代码推送时触发
   push:
     # 只监听main分支
-    branches: [ main ]
+    branches: [ master  ]
   
   # 当Pull Request时触发
   pull_request:
     # PR目标分支是main
-    branches: [ main ]
+    branches: [ master  ]
     # 只在PR创建时触发
     types: [opened]
 
