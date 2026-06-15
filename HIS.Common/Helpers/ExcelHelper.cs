@@ -123,7 +123,9 @@ namespace HIS.Common.Helpers
         {
             var withAttr = typeof(T).GetProperties()
                 .Select(p => (Prop: p, Attr: p.GetCustomAttribute<ExcelColumnAttribute>()))
-                .Where(x => x.Attr != null).ToList();
+                .Where(x => x.Attr != null)
+                .Select(x => (x.Prop, Attr: x.Attr!))
+                .ToList();
 
             if (withAttr.Any()) return withAttr;
 
