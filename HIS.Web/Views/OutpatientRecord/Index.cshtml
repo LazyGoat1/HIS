@@ -1,0 +1,104 @@
+@{
+    ViewData["Title"] = "门诊诊疗";
+    ViewData["Module"] = "门诊管理 / 门诊诊疗";
+}
+
+<div class="page-container">
+    <!-- ====== 搜索栏 ====== -->
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="患者姓名 / 挂号单号"
+                           class="layui-input" style="width:220px;" />
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="visitDateStart" id="visitDateStart"
+                           placeholder="就诊日期 从" class="layui-input" style="width:150px;" />
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="visitDateEnd" id="visitDateEnd"
+                           placeholder="就诊日期 至" class="layui-input" style="width:150px;" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== 数据表格 ====== -->
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer', 'laydate'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer, laydate = layui.laydate;
+
+            laydate.render({ elem: '#visitDateStart', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#visitDateEnd', format: 'yyyy-MM-dd' });
+            form.render();
+
+            table.render({
+                elem: '#dataTable',
+                url: '/OutpatientRecord/GetList',
+                page: true,
+                limit: 10,
+                limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'registrationNo', title: '挂号单号', width: 170 },
+                    { field: 'patientName', title: '患者', width: 85 },
+                    { field: 'doctorName', title: '接诊医生', width: 90 },
+                    { field: 'chiefComplaint', title: '主诉', minWidth: 150,
+                        templet: function(d) {
+                            return d.chiefComplaint ? d.chiefComplaint.substr(0, 30) + (d.chiefComplaint.length > 30 ? '...' : '') : '-';
+                        }},
+                    { field: 'preliminaryDiagnosis', title: '初步诊断', minWidth: 150,
+                        templet: function(d) {
+                            return d.preliminaryDiagnosis ? d.preliminaryDiagnosis.substr(0, 30) + (d.preliminaryDiagnosis.length > 30 ? '...' : '') : '-';
+                        }},
+                    { field: 'visitTime', title: '就诊时间', width: 160,
+                        templet: function(d) { return formatDate(d.visitTime); }},
+                    { fixed: 'right', title: '操作', width: 160, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            form.on('submit(search)', function () {
+                table.reload('dataTable', {
+                    where: form.val('searchForm'),
+                    page: { curr: 1 }
+                });
+                return false;
+            });
+
+            $('#btnReset').click(function () {
+                $('#searchForm')[0].reset();
+                table.reload('dataTable', { where: {}, page: { curr: 1 } });
+            });
+
+            table.on('tool(dataTable)', function (obj) {
+                var data = obj.data;
+                if (obj.event === 'detail') {
+                    openLayer('门诊详情 - ' + data.patientName,
+                        '/OutpatientRecord/Detail/' + data.id, '800px', '600px');
+                } else if (obj.event === 'prescribe') {
+                    // 开处方
+                    openLayer('开具处方 - ' + data.patientName,
+                        '/Prescription/Create?outpatientRecordId=' + data.id,
+                        '900px', '600px');
+                }
+            });
+        });
+    </script>
+
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="detail">详情</a>
+        <a class="layui-btn layui-btn-xs" lay-event="prescribe">开处方</a>
+    </script>
+}

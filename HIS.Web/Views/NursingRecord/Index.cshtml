@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "护理记录";
+    ViewData["Module"] = "住院管理 / 护理记录";
+}
+<div class="page-container">
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+<script>
+    layui.use(['table','form'], function () { var table = layui.table, form = layui.form; form.render();
+        table.render({ elem: '#dataTable', url: '/NursingRecord/GetList', page: true, limit: 10,
+            cols: [[
+
+                { field: 'patientName', title: '患者', width: 80 },
+                { field: 'inpatientNo', title: '住院号', width: 140 },
+                { field: 'bedNo', title: '床位', width: 120, templet: function(d){ return d.roomNo+' '+d.bedNo; }},
+                { field: 'content', title: '护理内容', minWidth: 200 },
+                { field: 'nurseName', title: '护士', width: 80 },
+                { field: 'recordTime', title: '记录时间', width: 160, templet: function(d){ return formatDate(d.recordTime); }},
+                { field: 'createTime', title: '创建时间', width: 160, templet: function(d){ return formatDate(d.createTime); }}
+            ]],
+            request: { pageName: 'pageIndex', limitName: 'pageSize' },
+            response: { statusCode: 0, countName: 'total', dataName: 'data' }
+        });
+    });
+</script>
+}

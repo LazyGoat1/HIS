@@ -1,0 +1,85 @@
+@model HIS.Models.ViewModels.LoginViewModel
+@{
+    Layout = "_LayoutLogin";
+    ViewData["Title"] = "登录";
+}
+
+<div class="login-box">
+    <div class="login-title">
+        <i class="layui-icon layui-icon-home"></i>
+        医院管理系统
+    </div>
+    <form class="layui-form" id="loginForm" method="post">
+        <div class="layui-form-item">
+            <div class="layui-input-wrap">
+                <i class="layui-icon layui-icon-username"></i>
+                <input type="text" name="UserName" lay-verify="required" placeholder="请输入用户名"
+                       autocomplete="off" class="layui-input" value="admin" />
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <div class="layui-input-wrap">
+                <i class="layui-icon layui-icon-password"></i>
+                <input type="password" name="Password" lay-verify="required" placeholder="请输入密码"
+                       autocomplete="off" class="layui-input" value="123456" />
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <input type="checkbox" name="RememberMe" title="记住我" lay-skin="primary" />
+        </div>
+        <div class="layui-form-item">
+            <button type="button" class="layui-btn login-btn" lay-submit lay-filter="loginSubmit">
+                <i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop" style="display:none;" id="loginLoading"></i> 登 录
+            </button>
+        </div>
+    </form>
+    <div class="login-footer">© 医院管理系统</div>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['form', 'layer'], function () {
+            var form = layui.form;
+            var layer = layui.layer;
+            var $ = layui.$;
+
+            form.on('submit(loginSubmit)', function (data) {
+                var btn = $(this);
+                btn.attr('disabled', true);
+                $('#loginLoading').show();
+
+                // 显式获取表单值，避免 layui data.field 对 checkbox 处理的兼容问题
+                var submitData = {
+                    UserName: $('input[name="UserName"]').val(),
+                    Password: $('input[name="Password"]').val(),
+                    RememberMe: $('input[name="RememberMe"]').prop('checked')
+                };
+
+                $.ajax({
+                    url: '/Account/Login',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(submitData),
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.code === 0) {
+                            layer.msg('登录成功', { icon: 1, time: 800 }, function () {
+                                window.location.href = res.data.redirectUrl || '/Home/Index';
+                            });
+                        } else {
+                            layer.msg(res.msg || '登录失败', { icon: 2 });
+                            btn.removeAttr('disabled');
+                            $('#loginLoading').hide();
+                        }
+                    },
+                    error: function () {
+                        layer.msg('网络异常，请稍后重试', { icon: 2 });
+                        btn.removeAttr('disabled');
+                        $('#loginLoading').hide();
+                    }
+                });
+                return false;
+            });
+        });
+    </script>
+}

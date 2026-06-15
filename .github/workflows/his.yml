@@ -1,0 +1,46 @@
+# 工作流名称，显示在GitHub Actions页面
+name: "HIS - Build & Test"
+
+# 触发条件：什么时候自动运行
+on:
+  # 当代码推送时触发
+  push:
+    # 只监听main分支
+    branches: [ main ]
+  
+  # 当Pull Request时触发
+  pull_request:
+    # PR目标分支是main
+    branches: [ main ]
+    # 只在PR创建时触发
+    types: [opened]
+
+# 任务定义
+jobs:
+  # 任务ID：编译任务
+  build:
+    # 运行环境：Ubuntu最新版
+    runs-on: ubuntu-latest
+    
+    # 具体步骤
+    steps:
+      # 步骤1：拉取代码
+      - uses: actions/checkout@v4
+      
+      # 步骤2：安装.NET SDK
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      # 步骤3：还原NuGet依赖包
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      # 步骤4：编译项目
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+      
+      # 步骤5：运行单元测试
+      - name: Run tests
+        run: dotnet test --no-build --configuration Release --verbosity normal

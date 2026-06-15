@@ -1,0 +1,73 @@
+@{
+    ViewData["Title"] = "操作日志";
+    ViewData["Module"] = "系统管理 / 操作日志";
+}
+
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm">
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="操作描述" class="layui-input" />
+                </div>
+                <div class="layui-inline">
+                    <select name="module">
+                        <option value="">全部模块</option>
+                        <option value="系统登录">系统登录</option>
+                        <option value="用户管理">用户管理</option>
+                        <option value="角色管理">角色管理</option>
+                        <option value="菜单管理">菜单管理</option>
+                        <option value="科室管理">科室管理</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="startDate" id="startDate" placeholder="开始日期" class="layui-input" />
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="endDate" id="endDate" placeholder="结束日期" class="layui-input" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'laydate'], function () {
+            var table = layui.table, form = layui.form, laydate = layui.laydate;
+
+            laydate.render({ elem: '#startDate', type: 'date' });
+            laydate.render({ elem: '#endDate', type: 'date' });
+            form.render();
+
+            table.render({
+                elem: '#dataTable', url: '/SysLog/GetList', page: true, limit: 10,
+                cols: [[
+                    { field: 'userName', title: '操作用户', width: 100 },
+                    { field: 'module', title: '模块', width: 100 },
+                    { field: 'action', title: '操作类型', width: 100 },
+                    { field: 'description', title: '操作描述' },
+                    { field: 'iPAddress', title: 'IP', width: 120 },
+                    { field: 'createTime', title: '操作时间', width: 170, templet: function(d){ return formatDate(d.createTime); } }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            form.on('submit(search)', function () {
+                table.reload('dataTable', { where: form.val('searchForm'), page: { curr: 1 } });
+                return false;
+            });
+            $('#btnReset').click(function () {
+                $('#searchForm')[0].reset();
+                table.reload('dataTable', { where: {}, page: { curr: 1 } });
+            });
+        });
+    </script>
+}

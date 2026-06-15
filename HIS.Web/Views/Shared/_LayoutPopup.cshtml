@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/layui/css/layui.css" />
+    <style>
+        body { background: #fff; }
+        .layui-form { padding: 15px 25px 0 5px; }
+    </style>
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+    @RenderBody()
+    <!-- 先加载 jQuery（Layui 依赖） -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <!-- 加载 layui 核心库，后续 inline script 才能使用 layui.use() -->
+    <script src="~/layui/layui.js"></script>
+    <script src="~/js/common.js"></script>
+    <!-- 确保 layui 已完全就绪后再执行页面脚本，避免 ReferenceError: layui is not defined -->
+    <script>
+        if (typeof layui === 'undefined') {
+            console.error('[HIS] layui.js 未能加载，请检查网络或文件路径');
+        }
+    </script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

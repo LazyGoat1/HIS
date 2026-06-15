@@ -1,0 +1,84 @@
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "个人信息"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <div class="layui-form-item" style="text-align:center;margin-bottom:15px;">
+        <div class="layui-upload">
+            <div id="avatarPreview" style="width:90px;height:90px;border-radius:50%;margin:0 auto;overflow:hidden;background:#f0f0f0;cursor:pointer;">
+                <img id="avatarImg" src="" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTAiIGhlaWdodD0iOTAiIHZpZXdCb3g9IjAgMCA5MCA5MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI0NSIgY3k9IjMwIiByPSIxOCIgZmlsbD0iI2NjYyIvPjxlbGxpcHNlIGN4PSI0NSIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iI2NjYyIvPjwvc3ZnPg=='"/>
+            </div>
+            <p style="color:#999;font-size:12px;">点击更换头像</p>
+        </div>
+    </div>
+    <input type="hidden" name="Avatar" id="avatarUrl" />
+    <div class="layui-form-item">
+        <label class="layui-form-label">用户名</label>
+        <div class="layui-input-block">
+            <input type="text" id="userName" class="layui-input layui-disabled" disabled />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">姓名</label>
+        <div class="layui-input-block">
+            <input type="text" name="RealName" lay-verify="required" id="realName" class="layui-input" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">手机号</label>
+        <div class="layui-input-block">
+            <input type="text" name="Phone" id="phone" class="layui-input" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">邮箱</label>
+        <div class="layui-input-block">
+            <input type="text" name="Email" id="email" class="layui-input" />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:20px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">保存</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeLayer()">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use(['form','upload'], function () {
+        var form = layui.form, upload = layui.upload, $ = layui.$;
+
+        // 加载当前用户信息
+        $.get('/Account/GetUserInfo', function (res) {
+            if (res.code === 0 && res.data) {
+                $('#userName').val(res.data.userName || '');
+                $('#realName').val(res.data.realName || '');
+                $('#phone').val(res.data.phone || '');
+                $('#email').val(res.data.email || '');
+                if (res.data.avatar) $('#avatarImg').attr('src', res.data.avatar);
+                form.render();
+            }
+        });
+
+        // 头像上传
+        upload.render({
+            elem: '#avatarPreview',
+            url: '/Account/UploadAvatar',
+            accept: 'images',
+            size: 1024, // KB
+            done: function (res) {
+                if (res.code === 0) {
+                    $('#avatarImg').attr('src', res.data);
+                    $('#avatarUrl').val(res.data);
+                } else { layer.msg(res.msg || '上传失败'); }
+            }
+        });
+
+        form.on('submit(submitForm)', function (data) {
+            http.post('/Account/Profile', data.field).then(function (res) {
+                handleResponse(res, null, function () {
+                    parent.$('#currentUserName').text(data.field.RealName || '');
+                    closeLayer();
+                });
+            });
+            return false;
+        });
+    });
+    function closeLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

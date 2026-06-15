@@ -1,0 +1,106 @@
+@model HIS.Models.DTOs.SysUserCreateDto
+@{
+    Layout = "_LayoutPopup";
+}
+
+<form class="layui-form" lay-filter="userForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+
+    <div class="layui-form-item">
+        <label class="layui-form-label required">用户名</label>
+        <div class="layui-input-block">
+            <input type="text" name="UserName" lay-verify="required" placeholder="登录账号" class="layui-input" value="@Model.UserName" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">密码</label>
+        <div class="layui-input-block">
+            <input type="password" name="Password" lay-verify="@(Model.Id > 0 ? "" : "required")" placeholder="@(Model.Id > 0 ? "不修改请留空" : "请输入密码")" class="layui-input" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">真实姓名</label>
+        <div class="layui-input-block">
+            <input type="text" name="RealName" lay-verify="required" class="layui-input" value="@Model.RealName" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">性别</label>
+        <div class="layui-input-block">
+            <input type="radio" name="Gender" value="1" title="男" @(Model.Gender == 1 ? "checked" : "") />
+            <input type="radio" name="Gender" value="0" title="女" @(Model.Gender == 0 ? "checked" : "") />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">角色</label>
+        <div class="layui-input-block">
+            <select name="RoleId" lay-verify="required">
+                <option value="">请选择角色</option>
+                @foreach (var role in ViewBag.Roles)
+                {
+                    <option value="@role.Id" selected="@(role.Id == Model.RoleId)">@role.RoleName</option>
+                }
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">所属科室</label>
+        <div class="layui-input-block">
+            <select name="DepartmentId">
+                <option value="">请选择科室</option>
+                @foreach (var dept in ViewBag.Departments)
+                {
+                    <option value="@dept.Id" selected="@(dept.Id == Model.DepartmentId)">@dept.DeptName</option>
+                }
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">手机号</label>
+        <div class="layui-input-block">
+            <input type="text" name="Phone" class="layui-input" value="@Model.Phone" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">邮箱</label>
+        <div class="layui-input-block">
+            <input type="text" name="Email" class="layui-input" value="@Model.Email" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">状态</label>
+        <div class="layui-input-block">
+            <input type="checkbox" name="Status" value="1" lay-skin="switch" lay-text="启用|禁用" @(Model.Status == 1 ? "checked" : "") />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">提交保存</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use(['form'], function () {
+        var form = layui.form;
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            var url = (parseInt(f.Id) || 0) > 0 ? '/SysUser/Edit' : '/SysUser/Create';
+            http.post(url, {
+                Id: parseInt(f.Id) || 0,
+                UserName: f.UserName,
+                Password: f.Password || null,
+                RealName: f.RealName,
+                Gender: parseInt(f.Gender) || 0,
+                Phone: f.Phone || null,
+                Email: f.Email || null,
+                DepartmentId: parseInt(f.DepartmentId) || null,
+                RoleId: parseInt(f.RoleId) || 0,
+                Status: parseInt(f.Status) || 1
+            }).then(function (res) {
+                handleResponse(res, null, function () { closeLayerAndReload('dataTable'); });
+            });
+            return false;
+        });
+    });
+</script>
+}

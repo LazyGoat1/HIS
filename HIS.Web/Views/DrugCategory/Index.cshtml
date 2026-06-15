@@ -1,0 +1,147 @@
+@{
+    ViewData["Title"] = "药品分类";
+    ViewData["Module"] = "基础数据 / 药品分类";
+}
+<div class="page-container">
+    <div style="display:flex;gap:15px;">
+        <!-- 左侧：分类树 -->
+        <div style="width:300px;flex-shrink:0;">
+            <div class="panel-card" style="padding:10px;">
+                <div style="margin-bottom:8px;">
+                    <button class="layui-btn layui-btn-sm" id="btnAddRoot"><i class="layui-icon layui-icon-add-1"></i> 新增根分类</button>
+                </div>
+                <div id="categoryTree" style="overflow:auto;"></div>
+            </div>
+        </div>
+        <!-- 右侧：详情表单 -->
+        <div style="flex:1;">
+            <div class="panel-card" id="detailPanel" style="padding:15px;display:none;">
+                <h4 style="margin-bottom:10px;">分类详情</h4>
+                <form class="layui-form" lay-filter="catForm">
+                    <input type="hidden" name="Id" />
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">名称</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="CategoryName" class="layui-input" />
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">上级分类</label>
+                        <div class="layui-input-block">
+                            <select name="ParentId" id="parentSelect"><option value="">无（根分类）</option></select>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">排序</label>
+                        <div class="layui-input-block">
+                            <input type="number" name="SortOrder" class="layui-input" value="1" />
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <button type="button" class="layui-btn layui-btn-sm" lay-submit lay-filter="saveBtn">保存</button>
+                        <button type="button" class="layui-btn layui-btn-sm layui-btn-danger" id="btnDeleteCat">删除</button>
+                        <button type="button" class="layui-btn layui-btn-sm" id="btnAddChild">添加子分类</button>
+                    </div>
+                </form>
+            </div>
+            <div id="emptyHint" class="panel-card" style="padding:40px;text-align:center;color:#999;">
+                点击左侧分类查看详情
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+<script>
+    layui.use(['tree', 'form', 'layer'], function () {
+        var tree = layui.tree, form = layui.form, layer = layui.layer;
+        var currentId = null;
+
+        // 加载分类树
+        function loadTree() {
+            $.get('/DrugCategory/GetTree', function (res) {
+                var data = res && res.data ? res.data : [];
+                tree.render({
+                    elem: '#categoryTree',
+                    data: convertToTreeData(data),
+                    showLine: true,
+                    click: function (obj) {
+                        currentId = obj.data.id;
+                        loadDetail(obj.data.id);
+                    }
+                });
+            });
+        }
+
+        // 转换为 layui tree 格式
+        function convertToTreeData(list) {
+            return list.map(function (c) {
+                return {
+                    id: c.id, title: c.categoryName + (c.drugCount > 0 ? ' (' + c.drugCount + '个药品)' : ''),
+                    spread: true,
+                    children: c.children ? convertToTreeData(c.children) : []
+                };
+            });
+        }
+
+        // 加载分类详情
+        function loadDetail(id) {
+            $.get('/DrugCategory/GetAll', function (res) {
+                var all = res && res.data ? res.data : [];
+                // 找到当前分类
+                var cat = all.find(function (c) { return c.id === id; });
+                if (!cat) return;
+
+                // 填充上级分类下拉
+                $('#parentSelect').empty().append('<option value="">无（根分类）</option>');
+                // 排除自己和自己的子级
+                var excludeIds = [id];
+                $.each(all, function (i, c) {
+                    if (excludeIds.indexOf(c.id) === -1 && c.parentId !== id) {
+                        $('#parentSelect').append('<option value="' + c.id + '">' + c.categoryName + '</option>');
+                    }
+                });
+
+                form.val('catForm', { Id: cat.id, CategoryName: cat.categoryName, ParentId: cat.parentId || '', SortOrder: cat.sortOrder });
+                form.render('select');
+                $('#detailPanel').show();
+                $('#emptyHint').hide();
+            });
+        }
+
+        // 新增根分类
+        $('#btnAddRoot').click(function () { openLayer('新增根分类', '/DrugCategory/Create', '500px', '280px'); });
+
+        // 添加子分类
+        $('#btnAddChild').click(function () {
+            if (!currentId) { layer.msg('请先选择一个分类'); return; }
+            openLayer('添加子分类', '/DrugCategory/Create?parentId=' + currentId, '500px', '280px');
+        });
+
+        // 保存
+        form.on('submit(saveBtn)', function (data) {
+            var f = data.field;
+            var d = { Id: parseInt(f.Id) || 0, CategoryName: f.CategoryName,
+                ParentId: f.ParentId ? parseInt(f.ParentId) : null, SortOrder: parseInt(f.SortOrder) || 1 };
+            var url = d.Id > 0 ? '/DrugCategory/Edit' : '/DrugCategory/Create';
+            http.post(url, d).then(function (res) {
+                handleResponse(res, null, function () { loadTree(); });
+            });
+            return false;
+        });
+
+        // 删除
+        $('#btnDeleteCat').click(function () {
+            if (!currentId) { layer.msg('请先选择一个分类'); return; }
+            confirmDelete('/DrugCategory/Delete', currentId, null);
+            // confirmDelete uses table.reload but we need loadTree
+            // Override: listen for close and reload
+            setTimeout(function () { loadTree(); }, 1500);
+        });
+
+        // 弹窗关闭后刷新树
+        window.addEventListener('message', function () { loadTree(); });
+
+        loadTree();
+    });
+</script>
+}

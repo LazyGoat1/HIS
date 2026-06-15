@@ -1,0 +1,161 @@
+@model HIS.Models.DTOs.DrugDto
+@{
+    Layout = "_LayoutPopup";
+    var isEdit = Model.Id > 0;
+}
+
+<!--
+    药品表单页（新增/编辑复用）
+    注意：新增时库存自动设为0，后续通过入库操作增加库存
+-->
+<form class="layui-form" lay-filter="drugForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+
+    @if (isEdit)
+    {
+        <!-- 编辑模式显示药品编码（只读），新增时自动生成 -->
+        <div class="layui-form-item">
+            <label class="layui-form-label">药品编码</label>
+            <div class="layui-input-block">
+                <input type="text" class="layui-input layui-disabled" value="@Model.DrugCode" disabled />
+            </div>
+        </div>
+    }
+
+    <!-- 药品名称 + 通用名 -->
+    <div class="layui-form-item">
+        <label class="layui-form-label required">药品名称</label>
+        <div class="layui-input-block">
+            <input type="text" name="DrugName" lay-verify="required" lay-reqtext="请输入药品名称"
+                   placeholder="商品名" class="layui-input" value="@Model.DrugName" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">通用名</label>
+        <div class="layui-input-block">
+            <input type="text" name="GenericName" placeholder="化学通用名"
+                   class="layui-input" value="@Model.GenericName" />
+        </div>
+    </div>
+
+    <!-- 分类 + 规格 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label">药品分类</label>
+            <div class="layui-input-inline">
+                <select name="CategoryId" lay-search>
+                    <option value="">无分类</option>
+                    @foreach (var cat in (IEnumerable<HIS.Models.DTOs.DrugCategoryDto>)ViewBag.Categories)
+                    {
+                        <option value="@cat.Id" selected="@(cat.Id == Model.CategoryId)">@cat.CategoryName</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">规格</label>
+            <div class="layui-input-inline">
+                <input type="text" name="Specification" placeholder="如: 0.25g*24片" class="layui-input" value="@Model.Specification" />
+            </div>
+        </div>
+    </div>
+
+    <!-- 单位 + 生产厂家 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label">单位</label>
+            <div class="layui-input-inline">
+                <select name="Unit">
+                    <option value="盒" selected="@(Model.Unit == "盒")">盒</option>
+                    <option value="瓶" selected="@(Model.Unit == "瓶")">瓶</option>
+                    <option value="支" selected="@(Model.Unit == "支")">支</option>
+                    <option value="片" selected="@(Model.Unit == "片")">片</option>
+                    <option value="袋" selected="@(Model.Unit == "袋")">袋</option>
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">生产厂家</label>
+            <div class="layui-input-inline">
+                <input type="text" name="Manufacturer" class="layui-input" value="@Model.Manufacturer" />
+            </div>
+        </div>
+    </div>
+
+    <!-- 进货价 + 零售价 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">进货价(元)</label>
+            <div class="layui-input-inline">
+                <input type="text" name="UnitPrice" lay-verify="required|number" class="layui-input" value="@Model.UnitPrice.ToString("F2")" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">零售价(元)</label>
+            <div class="layui-input-inline">
+                <input type="text" name="RetailPrice" lay-verify="required|number" class="layui-input" value="@Model.RetailPrice.ToString("F2")" />
+            </div>
+        </div>
+    </div>
+
+    <!-- 最低库存 + 处方药标记 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label">最低库存</label>
+            <div class="layui-input-inline">
+                <input type="number" name="MinStock" class="layui-input" value="@Model.MinStock" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">处方药</label>
+            <div class="layui-input-inline" style="padding-top:9px;">
+                <input type="checkbox" name="IsPrescription" value="true" lay-skin="switch" lay-text="是|否" @(Model.IsPrescription ? "checked" : "") />
+            </div>
+        </div>
+    </div>
+
+    @if (!isEdit)
+    {
+        <!-- 新增时提示 -->
+        <blockquote class="layui-elem-quote layui-text" style="margin-top:5px;">
+            <i class="layui-icon layui-icon-about"></i> 新增药品后库存为0，请通过【药房管理→药品入库】添加库存
+        </blockquote>
+    }
+
+    <div class="layui-form-item" style="text-align:center;margin-top:20px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">
+            <i class="layui-icon layui-icon-ok"></i> 提交保存
+        </button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">取消</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use('form', function () {
+        var form = layui.form;
+        form.on('submit(submitForm)', function (data) {
+            var url = parseInt(data.field.Id) > 0 ? '/Drug/Edit' : '/Drug/Create';
+            var submitData = {
+                Id: data.field.Id ? parseInt(data.field.Id) : 0,
+                DrugName: data.field.DrugName,
+                GenericName: data.field.GenericName || null,
+                CategoryId: data.field.CategoryId ? parseInt(data.field.CategoryId) : null,
+                Specification: data.field.Specification || null,
+                Unit: data.field.Unit || '盒',
+                Manufacturer: data.field.Manufacturer || null,
+                UnitPrice: parseFloat(data.field.UnitPrice),
+                RetailPrice: parseFloat(data.field.RetailPrice),
+                MinStock: parseInt(data.field.MinStock || 10),
+                IsPrescription: data.field.IsPrescription === 'true',
+                Status: 1
+            };
+            http.post(url, submitData).then(function (res) {
+                handleResponse(res, null, function () { closeLayerAndReload('dataTable'); });
+            });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

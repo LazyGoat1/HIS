@@ -1,0 +1,77 @@
+@model HIS.Models.DTOs.StockOutDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "药品出库"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <div class="layui-form-item">
+        <label class="layui-form-label required">药品</label>
+        <div class="layui-input-block">
+            <select name="DrugId" lay-verify="required" lay-search id="drugSelect" lay-filter="drugSelected">
+                <option value="">输入药品名称搜索...</option>
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">当前库存</label>
+        <div class="layui-input-block">
+            <input type="text" id="currentStock" class="layui-input layui-disabled" disabled value="--" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">出库数量</label>
+        <div class="layui-input-block">
+            <input type="number" name="Quantity" lay-verify="required|number" class="layui-input" min="1" value="1" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">关联单号</label>
+        <div class="layui-input-block">
+            <input type="text" name="RelatedNo" class="layui-input" placeholder="留空自动生成" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">备注</label>
+        <div class="layui-input-block">
+            <input type="text" name="Remark" class="layui-input" placeholder="出库原因" />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn layui-btn-warm" lay-submit lay-filter="submitForm">确认出库</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use('form', function () { var form = layui.form;
+        loadDrugs('');
+        var timer;
+        $('#drugSelect').parent().find('.layui-select-title input').on('input', function () {
+            var kw = this.value; clearTimeout(timer);
+            timer = setTimeout(function () { loadDrugs(kw); }, 300);
+        });
+        function loadDrugs(kw) {
+            $.get('/DrugStock/SearchDrug', { keyword: kw }, function (res) {
+                var items = res && res.data ? res.data : [];
+                var s = $('#drugSelect'); s.empty(); s.append('<option value="">请选择药品...</option>');
+                $.each(items, function (i, d) { s.append('<option value="'+d.id+'" data-stock="'+d.stock+'">'+d.name+' | '+d.code+' | 库存:'+d.stock+d.unit+'</option>'); });
+                form.render('select');
+            });
+        }
+
+        // 选中药品时更新当前库存
+        form.on('select(drugSelected)', function (data) {
+            var opt = data.elem[data.elem.selectedIndex];
+            var stock = opt.getAttribute('data-stock');
+            $('#currentStock').val(stock ? stock : '--');
+        });
+
+        form.on('submit(submitForm)', function (data) {
+            var submit = { DrugId: parseInt(data.field.DrugId)||0, Quantity: parseInt(data.field.Quantity)||0,
+                RelatedNo: data.field.RelatedNo||null, Remark: data.field.Remark||null };
+            http.post('/DrugStock/StockOut', submit).then(function (res) {
+                handleResponse(res, null, function () { parent.location.reload(); });
+            });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

@@ -1,0 +1,147 @@
+@{
+    ViewData["Title"] = "首页";
+    ViewData["Module"] = "首页";
+}
+
+<div class="page-container">
+    <!-- 欢迎信息 -->
+    <div class="panel-card" style="margin-bottom:15px;">
+        <h2 style="margin:0;">👋 欢迎回来，@ViewBag.UserName</h2>
+        <p style="color:#999;margin-top:5px;">今天是 @DateTime.Now.ToString("yyyy年MM月dd日 dddd")</p>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+        <div class="stat-card primary">
+            <div class="stat-number" id="todayRegistrations">--</div>
+            <div class="stat-label">今日挂号量</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-number" id="todayOutpatients">--</div>
+            <div class="stat-label">今日门诊量</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-number" id="inpatientCount">--</div>
+            <div class="stat-label">当前住院人数</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-number" id="todayIncome">--</div>
+            <div class="stat-label">今日收入(元)</div>
+        </div>
+        <div class="stat-card warning" id="lowStockCard" style="display:none;cursor:pointer;" onclick="location.href='/DrugStock/Index'">
+            <div class="stat-number" id="lowStockCount" style="color:#FF5722;">--</div>
+            <div class="stat-label">库存预警</div>
+        </div>
+    </div>
+
+    <!-- 医生待接诊队列 -->
+    <div class="panel-card" id="myQueueCard" style="display:none;margin-bottom:15px;">
+        <h3 style="margin-bottom:10px;"><i class="layui-icon layui-icon-user"></i> 我的待接诊队列（今日）</h3>
+        <table class="layui-table" lay-skin="line">
+            <thead><tr><th>排队号</th><th>挂号单号</th><th>患者</th><th>类型</th><th>挂号时间</th><th>操作</th></tr></thead>
+            <tbody id="myQueueBody"><tr><td colspan="6" style="text-align:center;color:#999;">加载中...</td></tr></tbody>
+        </table>
+    </div>
+
+    <!-- 快捷操作 -->
+    <div class="panel-card">
+        <h3 style="margin-bottom:10px;">快捷操作</h3>
+        <div class="layui-btn-container">
+            <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/Registration/Index'">
+                <i class="layui-icon layui-icon-user"></i> 挂号登记
+            </button>
+            <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/OutpatientRecord/Index'">
+                <i class="layui-icon layui-icon-read"></i> 门诊诊疗
+            </button>
+            <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/Prescription/Index'">
+                <i class="layui-icon layui-icon-edit"></i> 处方管理
+            </button>
+            <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/Charge/Index'">
+                <i class="layui-icon layui-icon-rmb"></i> 收费管理
+            </button>
+            <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/Drug/Index'">
+                <i class="layui-icon layui-icon-component"></i> 药品管理
+            </button>
+        </div>
+    </div>
+
+    <!-- 两栏布局 -->
+    <div style="display:flex;gap:15px;flex-wrap:wrap;">
+        <div style="flex:2;min-width:400px;">
+            <div class="panel-card">
+                <h3 style="margin-bottom:10px;">最近挂号记录</h3>
+                <table class="layui-table" lay-skin="line">
+                    <thead>
+                        <tr>
+                            <th>挂号单号</th><th>患者</th><th>科室</th><th>医生</th><th>状态</th><th>时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentRegistrations">
+                        <tr><td colspan="6" style="text-align:center;color:#999;">暂无数据</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div style="flex:1;min-width:300px;">
+            <div class="panel-card">
+                <h3 style="margin-bottom:10px;">系统公告</h3>
+                <div class="layui-text">
+                    <ul style="padding-left:16px;">
+                        <li style="margin-bottom:8px;"><b>系统上线通知</b><br/>医院管理系统 v1.0 正式上线运行</li>
+                        <li><b>操作提示</b><br/>请及时修改初始密码，确保账号安全</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['jquery', 'layer'], function () {
+            var $ = layui.jquery, layer = layui.layer;
+            // 加载库存预警
+            $.get('/Drug/GetLowStock', function (res) {
+                if (res.code === 0 && res.data && res.data.length > 0) {
+                    $('#lowStockCount').text(res.data.length);
+                    $('#lowStockCard').show();
+                }
+            });
+
+            // 加载仪表盘统计数据（首次加载 + 每30秒自动刷新）
+            function loadDashboard() {
+                $.get('/Statistics/Summary', function (res) {
+                    if (res.code === 0 && res.data) {
+                        $('#todayRegistrations').text(res.data.todayRegistrations || 0);
+                        $('#todayOutpatients').text(res.data.todayOutpatients || 0);
+                        $('#inpatientCount').text(res.data.inpatientCount || 0);
+                        $('#todayIncome').text((res.data.todayIncome || 0).toFixed(2));
+                    }
+                });
+            }
+            loadDashboard();
+            setInterval(loadDashboard, 30000);
+
+            // 加载医生待接诊队列
+            $.get('/Registration/GetMyQueue', function (res) {
+                if (res.code === 0 && res.data && res.data.length > 0) {
+                    var html = '';
+                    $.each(res.data, function (i, r) {
+                        html += '<tr><td>' + r.queueNumber + '</td><td>' + r.registrationNo + '</td>'
+                            + '<td>' + (r.patientName || '') + '</td>'
+                            + '<td>' + (r.registrationType === 1 ? '普通' : r.registrationType === 2 ? '专家' : '急诊') + '</td>'
+                            + '<td>' + formatDate(r.createTime) + '</td>'
+                            + '<td><a href="javascript:;" class="layui-btn layui-btn-xs layui-btn-normal" onclick="acceptPatient(' + r.id + ')">接诊</a></td></tr>';
+                    });
+                    $('#myQueueBody').html(html);
+                    $('#myQueueCard').show();
+                }
+            });
+
+            // 接诊按钮
+            window.acceptPatient = function (regId) {
+                openLayer('接诊', '/OutpatientRecord/Create?registrationId=' + regId, '800px', '600px');
+            };
+        });
+    </script>
+}

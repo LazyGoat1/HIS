@@ -1,0 +1,104 @@
+@{
+    ViewData["Title"] = "用户管理";
+    ViewData["Module"] = "系统管理 / 用户管理";
+}
+
+<div class="page-container">
+    <!-- 搜索栏 -->
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm">
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="用户名/姓名/手机号" class="layui-input" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate"><i class="layui-icon layui-icon-add-1"></i> 新增用户</button>
+    </div>
+
+    <!-- 数据表格 -->
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer;
+            form.render();
+
+            // 渲染表格
+            table.render({
+                elem: '#dataTable',
+                url: '/SysUser/GetList',
+                page: true, limit: 10, limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'userName', title: '用户名', width: 120 },
+                    { field: 'realName', title: '姓名', width: 100 },
+                    { field: 'gender', title: '性别', width: 70, templet: function(d){ return d.gender == 1 ? '男' : '女'; } },
+                    { field: 'phone', title: '手机号', width: 120 },
+                    { field: 'email', title: '邮箱', width: 150 },
+                    { field: 'status', title: '状态', width: 80, templet: '#statusTpl' },
+                    { field: 'lastLoginTime', title: '最后登录', width: 160, templet: function(d){ return formatDate(d.lastLoginTime); } },
+                    { field: 'createTime', title: '创建时间', width: 160, templet: function(d){ return formatDate(d.createTime); } },
+                    { fixed: 'right', title: '操作', width: 280, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            // 搜索
+            form.on('submit(search)', function () { table.reload('dataTable', { where: form.val('searchForm'), page: { curr: 1 } }); return false; });
+            $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', { where: {}, page: { curr: 1 } }); });
+
+            // 新增
+            $('#btnCreate').click(function () { openLayer('新增用户', '/SysUser/Create', '700px', '500px'); });
+
+            // 工具栏操作
+            table.on('tool(dataTable)', function (obj) {
+                var data = obj.data;
+                if (obj.event === 'edit') openLayer('编辑用户', '/SysUser/Edit/' + data.id, '700px', '500px');
+                else if (obj.event === 'status') {
+                    var tip = data.status == 1 ? '禁用' : '启用';
+                    layer.confirm('确定' + tip + '该用户吗？', function (idx) {
+                        layer.close(idx);
+                        http.post('/SysUser/SetStatus', { id: data.id, status: data.status == 1 ? 0 : 1 }).then(function (r) {
+                            handleResponse(r, null, function () { table.reload('dataTable'); });
+                        });
+                    });
+                }
+                else if (obj.event === 'resetPwd') {
+                    layer.confirm('确定重置该用户密码吗？', function (idx) {
+                        layer.close(idx);
+                        http.post('/SysUser/ResetPassword', data.id).then(function (r) {
+                            handleResponse(r);
+                        });
+                    });
+                }
+                else if (obj.event === 'delete') confirmDelete('/SysUser/Delete', data.id, 'dataTable');
+            });
+        });
+    </script>
+
+    <!-- 状态模板 -->
+    <script type="text/html" id="statusTpl">
+        {{# if(d.status == 1){ }} <span style="color:#16b777;">启用</span> {{# } else { }} <span style="color:#FF5722;">禁用</span> {{# } }}
+    </script>
+
+    <!-- 操作按钮模板 -->
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="status">{{ d.status == 1 ? '禁用' : '启用' }}</a>
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="resetPwd">重置密码</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+    </script>
+}

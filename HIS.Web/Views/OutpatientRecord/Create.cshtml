@@ -1,0 +1,102 @@
+@model HIS.Models.DTOs.OutpatientRecordCreateDto
+@{
+    Layout = "_LayoutPopup";
+    ViewData["Title"] = "接诊";
+}
+
+<!--
+    接诊表单 - 医生填写门诊诊疗记录
+-->
+<form class="layui-form" lay-filter="outpatientForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="RegistrationId" value="@Model.RegistrationId" />
+
+    <div class="layui-form-item">
+        <label class="layui-form-label">主诉</label>
+        <div class="layui-input-block">
+            <textarea name="ChiefComplaint" placeholder="患者主要症状、持续时间等"
+                      class="layui-textarea" style="min-height:45px;"></textarea>
+        </div>
+    </div>
+
+    <div class="layui-form-item">
+        <label class="layui-form-label">现病史</label>
+        <div class="layui-input-block">
+            <textarea name="PresentIllness" placeholder="发病过程、诊治经过..."
+                      class="layui-textarea" style="min-height:60px;"></textarea>
+        </div>
+    </div>
+
+    <div class="layui-form-item">
+        <label class="layui-form-label">既往史</label>
+        <div class="layui-input-block">
+            <textarea name="PastHistory" placeholder="既往病史、手术史、过敏史..."
+                      class="layui-textarea" style="min-height:45px;"></textarea>
+        </div>
+    </div>
+
+    <div class="layui-form-item">
+        <label class="layui-form-label">体格检查</label>
+        <div class="layui-input-block">
+            <textarea name="PhysicalExamination" placeholder="T/P/R/BP、心肺听诊等..."
+                      class="layui-textarea" style="min-height:45px;"></textarea>
+        </div>
+    </div>
+
+    <div class="layui-form-item">
+        <label class="layui-form-label required">初步诊断</label>
+        <div class="layui-input-block">
+            <input type="text" name="PreliminaryDiagnosis" lay-verify="required"
+                   lay-reqtext="请输入初步诊断" placeholder="初步诊断结论"
+                   class="layui-input" />
+        </div>
+    </div>
+
+    <div class="layui-form-item">
+        <label class="layui-form-label">医嘱建议</label>
+        <div class="layui-input-block">
+            <textarea name="Advice" placeholder="治疗建议、用药指导、复诊时间等..."
+                      class="layui-textarea" style="min-height:45px;"></textarea>
+        </div>
+    </div>
+
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">
+            <i class="layui-icon layui-icon-ok"></i> 保存诊疗记录
+        </button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">
+            取消
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use('form', function () {
+        var form = layui.form;
+
+        form.on('submit(submitForm)', function (data) {
+            var submitData = {
+                RegistrationId: parseInt(data.field.RegistrationId) || 0,
+                ChiefComplaint: data.field.ChiefComplaint || null,
+                PresentIllness: data.field.PresentIllness || null,
+                PastHistory: data.field.PastHistory || null,
+                PhysicalExamination: data.field.PhysicalExamination || null,
+                PreliminaryDiagnosis: data.field.PreliminaryDiagnosis || null,
+                Advice: data.field.Advice || null
+            };
+
+            http.post('/OutpatientRecord/Create', submitData).then(function (res) {
+                handleResponse(res, null, function () {
+                    parent.location.reload();
+                });
+            });
+            return false;
+        });
+    });
+
+    function closeCurrentLayer() {
+        var index = parent.layer.getFrameIndex(window.name);
+        parent.layer.close(index);
+    }
+</script>
+}

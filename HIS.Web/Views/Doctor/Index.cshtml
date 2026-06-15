@@ -1,0 +1,125 @@
+@{
+    ViewData["Title"] = "医生管理";
+    ViewData["Module"] = "基础数据 / 医生管理";
+}
+
+<div class="page-container">
+    <!-- ====== 搜索栏 ====== -->
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="姓名 / 工号" class="layui-input" />
+                </div>
+                <div class="layui-inline">
+                    <select name="departmentId" lay-search>
+                        <option value="">全部科室</option>
+                        <!-- JS 动态加载科室选项 -->
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== 工具栏 ====== -->
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate">
+            <i class="layui-icon layui-icon-add-1"></i> 新增医生
+        </button>
+    </div>
+
+    <!-- ====== 数据表格 ====== -->
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer;
+
+            // 加载科室下拉选项
+            http.get('/SysDepartment/GetList', { pageIndex: 1, pageSize: 100 }).then(function (res) {
+                if (res.data) {
+                    var html = '';
+                    res.data.forEach(function (d) {
+                        html += '<option value="' + d.id + '">' + d.deptName + '</option>';
+                    });
+                    $('select[name="departmentId"]').append(html);
+                    form.render('select');
+                }
+            });
+
+            // 渲染表格
+            table.render({
+                elem: '#dataTable',
+                url: '/Doctor/GetList',
+                page: true, limit: 10, limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'doctorNo', title: '工号', width: 100 },
+                    { field: 'name', title: '姓名', width: 80 },
+                    { field: 'gender', title: '性别', width: 60,
+                        templet: function(d){ return d.gender == 1 ? '男' : '女'; }
+                    },
+                    { field: 'departmentName', title: '所属科室', width: 120 },
+                    { field: 'title', title: '职称', width: 110,
+                        templet: function(d){
+                            var map = {1:'主任医师',2:'副主任医师',3:'主治医师',4:'住院医师'};
+                            return map[d.title] || d.title;
+                        }
+                    },
+                    { field: 'specialty', title: '专长', minWidth: 120 },
+                    { field: 'maxDailyPatients', title: '日限号', width: 80 },
+                    { field: 'consultationFee', title: '诊疗费(元)', width: 100 },
+                    { field: 'status', title: '状态', width: 80, templet: '#statusTpl' },
+                    { field: 'createTime', title: '创建时间', width: 160,
+                        templet: function(d){ return formatDate(d.createTime); }
+                    },
+                    { fixed: 'right', title: '操作', width: 200, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            // 搜索
+            form.on('submit(search)', function () {
+                table.reload('dataTable', { where: form.val('searchForm'), page: { curr: 1 } });
+                return false;
+            });
+            $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', { where: {}, page: { curr: 1 } }); });
+            $('#btnCreate').click(function () { openLayer('新增医生', '/Doctor/Create', '750px', '520px'); });
+
+            // 行操作
+            table.on('tool(dataTable)', function (obj) {
+                var data = obj.data;
+                if (obj.event === 'edit') openLayer('编辑医生 - ' + data.name, '/Doctor/Edit/' + data.id, '750px', '520px');
+                else if (obj.event === 'status') {
+                    layer.confirm('确定切换该医生的状态吗？', function (idx) {
+                        layer.close(idx);
+                        http.post('/Doctor/ToggleStatus', data.id).then(function (r) {
+                            handleResponse(r, null, function () { table.reload('dataTable'); });
+                        });
+                    });
+                }
+                else if (obj.event === 'delete') confirmDelete('/Doctor/Delete', data.id, 'dataTable');
+            });
+        });
+    </script>
+
+    <!-- 状态模板 -->
+    <script type="text/html" id="statusTpl">
+        {{# if(d.status == 1){ }}<span style="color:#16b777;">在岗</span>{{# } else { }}<span style="color:#FF5722;">休假</span>{{# } }}
+    </script>
+
+    <!-- 操作按钮模板 -->
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="status">{{ d.status == 1 ? '设为休假' : '设为在岗' }}</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+    </script>
+}

@@ -1,0 +1,100 @@
+@{
+    ViewData["Title"] = "统计报表";
+    ViewData["Module"] = "统计报表";
+}
+<div class="page-container">
+    <!-- 概览卡片 -->
+    <div class="stat-cards" style="margin-bottom:15px;">
+        <div class="stat-card primary"><div class="stat-number" id="todayReg">--</div><div class="stat-label">今日挂号</div></div>
+        <div class="stat-card success"><div class="stat-number" id="todayOp">--</div><div class="stat-label">今日门诊</div></div>
+        <div class="stat-card warning"><div class="stat-number" id="ipCount">--</div><div class="stat-label">在院人数</div></div>
+        <div class="stat-card danger"><div class="stat-number" id="todayIncome">--</div><div class="stat-label">今日收入(元)</div></div>
+    </div>
+
+    <!-- 图表行 -->
+    <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:15px;">
+        <div class="panel-card" style="flex:1;min-width:480px;"><div id="chartOutpatient" style="height:300px;"></div></div>
+        <div class="panel-card" style="flex:1;min-width:480px;"><div id="chartIncome" style="height:300px;"></div></div>
+    </div>
+    <div style="display:flex;gap:15px;flex-wrap:wrap;">
+        <div class="panel-card" style="flex:1;min-width:400px;"><div id="chartDept" style="height:300px;"></div></div>
+        <div class="panel-card" style="flex:1;min-width:400px;"><div id="chartDrug" style="height:300px;"></div></div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>
+    layui.use(['jquery'], function () {
+        var $ = layui.jquery;
+
+        // 概览数据
+        $.get('/Statistics/Summary', function (res) {
+            if (res.code === 0 && res.data) {
+                $('#todayReg').text(res.data.todayRegistrations || 0);
+                $('#todayOp').text(res.data.todayOutpatients || 0);
+                $('#ipCount').text(res.data.inpatientCount || 0);
+                $('#todayIncome').text((res.data.todayIncome || 0).toFixed(2));
+            }
+        });
+
+        // 门诊趋势
+        var chartOp = echarts.init(document.getElementById('chartOutpatient'));
+        $.get('/Statistics/OutpatientTrend', { days: 7 }, function (res) {
+            if (res.code !== 0 || !res.data) return;
+            chartOp.setOption({
+                title: { text: '近7日门诊量', left: 'center' },
+                tooltip: {},
+                xAxis: { data: res.data.map(function(d){return d.date;}) },
+                yAxis: {},
+                series: [{ name: '门诊量', type: 'line', data: res.data.map(function(d){return d.value;}), smooth: true,
+                    itemStyle: { color: '#1E9FFF' }, areaStyle: { color: 'rgba(30,159,255,0.15)' } }]
+            });
+        });
+
+        // 收入趋势
+        var chartInc = echarts.init(document.getElementById('chartIncome'));
+        $.get('/Statistics/IncomeTrend', { days: 7 }, function (res) {
+            if (res.code !== 0 || !res.data) return;
+            chartInc.setOption({
+                title: { text: '近7日收入(元)', left: 'center' },
+                tooltip: {},
+                xAxis: { data: res.data.map(function(d){return d.date;}) },
+                yAxis: {},
+                series: [{ name: '收入', type: 'bar', data: res.data.map(function(d){return d.value;}),
+                    itemStyle: { color: '#5FB878' } }]
+            });
+        });
+
+        // 科室排名
+        var chartDept = echarts.init(document.getElementById('chartDept'));
+        $.get('/Statistics/DepartmentRanking', function (res) {
+            if (res.code !== 0 || !res.data) return;
+            chartDept.setOption({
+                title: { text: '科室就诊排名', left: 'center' },
+                tooltip: {},
+                xAxis: { type: 'category', data: res.data.map(function(d){return d.name;}) },
+                yAxis: { type: 'value' },
+                series: [{ type: 'bar', data: res.data.map(function(d){return d.value;}),
+                    itemStyle: { color: '#FFB800' } }]
+            });
+        });
+
+        // 药品排名
+        var chartDrug = echarts.init(document.getElementById('chartDrug'));
+        $.get('/Statistics/DrugRanking', { topN: 10 }, function (res) {
+            if (res.code !== 0 || !res.data) return;
+            chartDrug.setOption({
+                title: { text: '药品使用排名(TOP10)', left: 'center' },
+                tooltip: {},
+                xAxis: { type: 'category', data: res.data.map(function(d){return d.name;}) },
+                yAxis: { type: 'value' },
+                series: [{ type: 'bar', data: res.data.map(function(d){return d.value;}),
+                    itemStyle: { color: '#FF5722' } }]
+            });
+        });
+
+        $(window).resize(function () { chartOp.resize(); chartInc.resize(); chartDept.resize(); chartDrug.resize(); });
+    });
+</script>
+}

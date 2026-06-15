@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - 医院管理系统</title>
+    <link rel="stylesheet" href="~/layui/css/layui.css" />
+    <link rel="stylesheet" href="~/css/login.css" />
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+    <div class="login-wrapper">
+        @RenderBody()
+    </div>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/layui/layui.js"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

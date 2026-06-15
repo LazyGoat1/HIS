@@ -1,0 +1,95 @@
+@model HIS.Models.DTOs.PrescriptionDto
+@{
+    Layout = "_LayoutPopup";
+    ViewData["Title"] = "处方详情";
+}
+
+<div style="padding:20px 30px;">
+    <fieldset class="layui-elem-field">
+        <legend>处方信息</legend>
+        <div class="layui-field-box">
+            <table class="layui-table" lay-size="sm">
+                <colgroup>
+                    <col width="100"><col width="220"><col width="100"><col width="220">
+                </colgroup>
+                <tbody>
+                    <tr><td><strong>处方号</strong></td><td style="color:#1E9FFF;font-weight:bold;">@Model.PrescriptionNo</td>
+                        <td><strong>状态</strong></td><td>
+                            @{
+                                var statusMap = new Dictionary<int, string> { {1,"已开具"}, {2,"已收费"}, {3,"已发药"}, {4,"已退方"} };
+                                var statusColor = new Dictionary<int, string> { {1,"#1E9FFF"}, {2,"#FFB800"}, {3,"#5FB878"}, {4,"#999"} };
+                            }
+                            <span style="color:@(statusColor.GetValueOrDefault(Model.Status, "#333"))">@(statusMap.GetValueOrDefault(Model.Status, Model.Status.ToString()))</span>
+                    </td></tr>
+                    <tr><td><strong>患者</strong></td><td>@Model.PatientName</td>
+                        <td><strong>医生</strong></td><td>@Model.DoctorName</td></tr>
+                    <tr><td><strong>处方类型</strong></td><td>
+                            @{
+                                var typeMap = new Dictionary<int, string> { {1,"西药"}, {2,"中药"}, {3,"检查"} };
+                            }
+                            @(typeMap.GetValueOrDefault(Model.PrescriptionType, ""))
+                    </td>
+                        <td><strong>开具时间</strong></td><td>@Model.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </fieldset>
+
+    <fieldset class="layui-elem-field" style="margin-top:15px;">
+        <legend>处方明细</legend>
+        <div class="layui-field-box">
+            <table class="layui-table" lay-size="sm">
+                <thead>
+                    <tr>
+                        <th>药品名称</th><th>规格</th><th>单位</th><th>单价</th><th>数量</th><th>金额</th>
+                        <th>用法</th><th>用量</th><th>频次</th><th>天数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Details != null && Model.Details.Count > 0)
+                    {
+                        foreach (var item in Model.Details)
+                        {
+                            <tr>
+                                <td>@item.ItemName</td>
+                                <td>@(item.Specification ?? "-")</td>
+                                <td>@(item.Unit ?? "-")</td>
+                                <td>¥@item.UnitPrice.ToString("F4")</td>
+                                <td>@item.Quantity</td>
+                                <td>¥@item.Amount.ToString("F2")</td>
+                                <td>@(item.Usage ?? "-")</td>
+                                <td>@(item.Dosage ?? "-")</td>
+                                <td>@(item.Frequency ?? "-")</td>
+                                <td>@(item.Days?.ToString() ?? "-")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="10" style="text-align:center;color:#999;">无明细数据</td></tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" style="text-align:right;"><strong>合计：</strong></td>
+                        <td colspan="5" style="color:#FF5722;font-weight:bold;font-size:16px;">
+                            ¥@Model.TotalAmount.ToString("F2")
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </fieldset>
+
+    <div style="text-align:center;margin-top:20px;">
+        <a class="layui-btn layui-btn-normal" href="/Prescription/Print/@Model.Id" target="_blank"><i class="layui-icon layui-icon-print"></i> 打印</a>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">关闭</button>
+    </div>
+</div>
+
+<script>
+    function closeCurrentLayer() {
+        var index = parent.layer.getFrameIndex(window.name);
+        parent.layer.close(index);
+    }
+</script>

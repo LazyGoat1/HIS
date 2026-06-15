@@ -1,0 +1,65 @@
+@model HIS.Models.DTOs.OutpatientRecordDto
+@{
+    Layout = "_LayoutPopup";
+    ViewData["Title"] = "门诊诊疗详情";
+}
+
+<div style="padding:20px 30px;">
+    <fieldset class="layui-elem-field">
+        <legend>基本信息</legend>
+        <div class="layui-field-box">
+            <table class="layui-table" lay-size="sm">
+                <colgroup>
+                    <col width="100"><col width="200"><col width="100"><col width="200">
+                </colgroup>
+                <tbody>
+                    <tr><td><strong>挂号单号</strong></td><td>@Model.RegistrationNo</td>
+                        <td><strong>患者姓名</strong></td><td>@Model.PatientName</td></tr>
+                    <tr><td><strong>接诊医生</strong></td><td>@Model.DoctorName</td>
+                        <td><strong>就诊时间</strong></td><td>@Model.VisitTime.ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </fieldset>
+
+    <fieldset class="layui-elem-field" style="margin-top:15px;">
+        <legend>诊疗内容</legend>
+        <div class="layui-field-box">
+            <div class="info-section" style="margin-bottom:12px;">
+                <h4 style="margin:0 0 5px 0;color:#1E9FFF;">主诉</h4>
+                <p style="margin:0;line-height:1.8;">@(Model.ChiefComplaint ?? "无")</p>
+            </div>
+            <div class="info-section" style="margin-bottom:12px;">
+                <h4 style="margin:0 0 5px 0;color:#1E9FFF;">现病史</h4>
+                <p style="margin:0;line-height:1.8;">@(Model.PresentIllness ?? "无")</p>
+            </div>
+            <div class="info-section" style="margin-bottom:12px;">
+                <h4 style="margin:0 0 5px 0;color:#1E9FFF;">既往史</h4>
+                <p style="margin:0;line-height:1.8;">@(Model.PastHistory ?? "无")</p>
+            </div>
+            <div class="info-section" style="margin-bottom:12px;">
+                <h4 style="margin:0 0 5px 0;color:#1E9FFF;">体格检查</h4>
+                <p style="margin:0;line-height:1.8;">@(Model.PhysicalExamination ?? "无")</p>
+            </div>
+            <div class="info-section" style="margin-bottom:12px;">
+                <h4 style="margin:0 0 5px 0;color:#FF5722;">初步诊断</h4>
+                <p style="margin:0;line-height:1.8;font-weight:bold;">@(Model.PreliminaryDiagnosis ?? "无")</p>
+            </div>
+            <div class="info-section">
+                <h4 style="margin:0 0 5px 0;color:#5FB878;">医嘱建议</h4>
+                <p style="margin:0;line-height:1.8;">@(Model.Advice ?? "无")</p>
+            </div>
+        </div>
+    </fieldset>
+
+    <div style="text-align:center;margin-top:20px;">
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">关闭</button>
+    </div>
+</div>
+
+<script>
+    function closeCurrentLayer() {
+        var index = parent.layer.getFrameIndex(window.name);
+        parent.layer.close(index);
+    }
+</script>

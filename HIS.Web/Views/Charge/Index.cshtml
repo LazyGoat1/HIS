@@ -1,0 +1,86 @@
+@{
+    ViewData["Title"] = "收费管理";
+    ViewData["Module"] = "收费管理";
+}
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="收费单号 / 患者姓名" class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="chargeType"><option value="">全部类型</option><option value="1">挂号</option><option value="2">门诊</option><option value="3">住院预交</option><option value="4">住院结算</option></select>
+                </div>
+                <div class="layui-inline">
+                    <select name="paymentMethod"><option value="">支付方式</option><option value="1">现金</option><option value="2">微信</option><option value="3">支付宝</option><option value="4">银行卡</option><option value="5">医保</option></select>
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="startDate" id="startDate" placeholder="开始日期" class="layui-input" style="width:130px;" />
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="endDate" id="endDate" placeholder="结束日期" class="layui-input" style="width:130px;" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate"><i class="layui-icon layui-icon-rmb"></i> 门诊收费</button>
+        <button class="layui-btn layui-btn-primary" id="btnExport"><i class="layui-icon layui-icon-export"></i> 导出Excel</button>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+<script>
+    layui.use(['table','form','layer','laydate'], function () {
+        var table = layui.table, form = layui.form, layer = layui.layer, laydate = layui.laydate;
+        laydate.render({ elem: '#startDate', format: 'yyyy-MM-dd' });
+        laydate.render({ elem: '#endDate', format: 'yyyy-MM-dd' });
+        form.render();
+
+        table.render({
+            elem: '#dataTable', url: '/Charge/GetList', page: true, limit: 10, limits: [10,15,20,50],
+            cols: [[
+                { type: 'checkbox', fixed: 'left' },
+                { field: 'chargeNo', title: '收费单号', width: 180 },
+                { field: 'patientName', title: '患者', width: 80 },
+                { field: 'chargeType', title: '类型', width: 120, templet: function(d){ var m={1:'挂号',2:'门诊',3:'住院预交',4:'住院结算'}; return m[d.chargeType]||d.chargeType; }},
+                    { field: 'totalAmount', title: '应收', width: 120, templet: function(d){ return '¥'+formatMoney(d.totalAmount); }},
+                    { field: 'paidAmount', title: '实收', width: 120, templet: function(d){ return '¥'+formatMoney(d.paidAmount); }},
+                { field: 'paymentMethod', title: '支付方式', width:120, templet: function(d){ var m={1:'现金',2:'微信',3:'支付宝',4:'银行卡',5:'医保'}; return m[d.paymentMethod]||d.paymentMethod; }},
+                    { field: 'status', title: '状态', width: 120, templet: function(d){ return d.status===1?'<span style="color:#5FB878;">已收费</span>':'<span style="color:#999;">已退费</span>'; }},
+                { field: 'createTime', title: '收费时间', width: 160, templet: function(d){ return formatDate(d.createTime); }},
+                { fixed: 'right', title: '操作', width: 100, toolbar: '#barTpl' }
+            ]],
+            request: { pageName: 'pageIndex', limitName: 'pageSize' },
+            response: { statusCode: 0, countName: 'total', dataName: 'data' }
+        });
+        form.on('submit(search)', function () { searchTable('dataTable','searchForm'); return false; });
+        $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable',{where:{},page:{curr:1}}); });
+        $('#btnCreate').click(function () { openLayer('门诊收费', '/Charge/Create', '600px', '450px'); });
+        $('#btnExport').click(function () {
+            var checked = table.checkStatus('dataTable').data;
+            var url = '/Charge/Export';
+            if (checked.length) url += '?ids=' + checked.map(function(r){ return r.id; }).join(',');
+            window.open(url);
+        });
+        table.on('tool(dataTable)', function (obj) {
+            if (obj.event === 'refund' && obj.data.status === 1) {
+                layer.confirm('确定退费吗？', {icon:3,title:'退费确认'}, function(idx){
+                    layer.close(idx);
+                    handlePost('/Charge/Refund', obj.data.id, '退费成功', function(){ table.reload('dataTable'); });
+                });
+            }
+        });
+    });
+</script>
+<script type="text/html" id="barTpl">
+    {{# if(d.status === 1) { }}
+    <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="refund">退费</a>
+    {{# } else { }}<span style="color:#999;">--</span>{{# } }}
+</script>
+}

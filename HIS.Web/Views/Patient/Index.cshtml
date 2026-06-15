@@ -1,0 +1,125 @@
+@{
+    ViewData["Title"] = "患者管理";
+    ViewData["Module"] = "基础数据 / 患者管理";
+}
+
+<div class="page-container">
+    <!-- ====== 搜索栏 ====== -->
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="姓名 / 手机号 / 身份证号 / 患者编号"
+                           class="layui-input" style="width:280px;" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== 工具栏 ====== -->
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate">
+            <i class="layui-icon layui-icon-add-1"></i> 新增患者
+        </button>
+        <button class="layui-btn layui-btn-primary" id="btnExport">
+            <i class="layui-icon layui-icon-export"></i> 导出Excel
+        </button>
+    </div>
+
+    <!-- ====== 数据表格 ====== -->
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer;
+            form.render();
+
+            // 渲染数据表格
+            table.render({
+                elem: '#dataTable',
+                url: '/Patient/GetList',
+                page: true,
+                limit: 10,
+                limits: [10, 15, 20, 50],
+                cols: [[
+                    { type: 'checkbox', fixed: 'left' },
+                    { field: 'patientNo', title: '患者编号', width: 170 },
+                    { field: 'name', title: '姓名', width: 85 },
+                    { field: 'gender', title: '性别', width: 60,
+                        templet: function(d){ return d.gender == 1 ? '<span style="color:#1E9FFF;">男</span>' : '<span style="color:#FF69B4;">女</span>'; }
+                    },
+                    { field: 'age', title: '年龄', width: 60 },
+                    { field: 'idCard', title: '身份证号', width: 170,
+                        templet: function(d){ return d.idCard ? d.idCard.replace(/(\d{4})\d{10}(\d{4})/, '$1**********$2') : '-'; }
+                    },
+                    { field: 'phone', title: '手机号', width: 120,
+                        templet: function(d){ return d.phone ? d.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '-'; }
+                    },
+                    { field: 'bloodType', title: '血型', width: 60 },
+                    { field: 'address', title: '地址', minWidth: 150 },
+                    { field: 'allergyHistory', title: '过敏史', minWidth: 120 },
+                    { field: 'createTime', title: '建档时间', width: 160,
+                        templet: function(d){ return formatDate(d.createTime); }
+                    },
+                    { fixed: 'right', title: '操作', width: 200, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            // 搜索事件
+            form.on('submit(search)', function () {
+                table.reload('dataTable', {
+                    where: form.val('searchForm'),
+                    page: { curr: 1 }
+                });
+                return false;
+            });
+
+            // 重置搜索
+            $('#btnReset').click(function () {
+                $('#searchForm')[0].reset();
+                table.reload('dataTable', { where: {}, page: { curr: 1 } });
+            });
+
+            // 新增患者按钮
+            $('#btnCreate').click(function () { openLayer('新增患者', '/Patient/Create', '700px', '550px'); });
+            $('#btnExport').click(function () {
+                var checked = table.checkStatus('dataTable').data;
+                var url = '/Patient/Export';
+                if (checked.length) url += '?ids=' + checked.map(function(r){ return r.id; }).join(',');
+                window.open(url);
+            });
+
+            // 行操作按钮
+            table.on('tool(dataTable)', function (obj) {
+                var data = obj.data;
+                if (obj.event === 'edit') {
+                    // 编辑患者
+                    openLayer('编辑患者 - ' + data.name, '/Patient/Edit/' + data.id, '700px', '550px');
+                } else if (obj.event === 'detail') {
+                    // 查看详情
+                    openLayer('患者详情 - ' + data.name, '/Patient/Edit/' + data.id, '700px', '550px');
+                } else if (obj.event === 'delete') {
+                    // 删除患者
+                    confirmDelete('/Patient/Delete', data.id, 'dataTable');
+                }
+            });
+        });
+    </script>
+
+    <!-- ====== 表格行操作按钮模板 ====== -->
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="detail">详情</a>
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+    </script>
+}

@@ -1,0 +1,103 @@
+/* ====== 登录页样式 ====== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.login-wrapper {
+    min-height: 100vh;
+    background: url('/images/bg.png') center/cover no-repeat;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-box {
+    width: 400px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    padding: 40px 35px 30px;
+}
+
+.login-box .login-title {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 24px;
+    color: #333;
+    font-weight: bold;
+}
+
+.login-box .login-title i {
+    font-size: 40px;
+    color: #1E9FFF;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.login-box .layui-form-item {
+    margin-bottom: 20px;
+}
+
+.login-box .layui-input-wrap {
+    position: relative;
+}
+
+.login-box .layui-input-wrap .layui-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+    z-index: 1;
+}
+
+.login-box .layui-input-wrap .layui-input {
+    padding-left: 32px;
+}
+
+.login-box .login-btn {
+    width: 100%;
+    height: 44px;
+    line-height: 44px;
+    font-size: 16px;
+    background-color: #1E9FFF;
+}
+
+.login-box .login-footer {
+    text-align: center;
+    margin-top: 15px;
+    color: #999;
+    font-size: 12px;
+}
+
+/* 验证码行 */
+.captcha-row {
+    display: flex;
+    gap: 10px;
+}
+
+.captcha-row .captcha-input {
+    flex: 1;
+}
+
+.captcha-row .captcha-img {
+    width: 100px;
+    height: 38px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    line-height: 38px;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: #333;
+}
+
+@media screen and (max-width: 480px) {
+    .login-box {
+        width: 90%;
+        padding: 30px 20px;
+    }
+}

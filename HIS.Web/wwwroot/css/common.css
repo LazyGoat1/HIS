@@ -1,0 +1,111 @@
+/* ====== 公共样式 ====== */
+
+/* 布局微调 */
+.layui-body {
+    overflow: hidden;
+    bottom: 44px;
+}
+
+.layui-tab-content {
+    padding: 0 !important;
+    position: absolute;
+    top: 40px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.layui-tab-item {
+    height: 100%;
+    overflow: auto;
+}
+
+/* 标签页内嵌 iframe 填满整个内容区 */
+.layui-tab-item iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* 内容区域内边距 */
+.page-container {
+    padding: 15px;
+}
+
+/* 搜索表单样式 */
+.search-form {
+    padding: 10px 0;
+}
+
+.search-form .layui-inline {
+    margin-bottom: 5px;
+}
+
+/* 表格工具栏 */
+.toolbar {
+    padding: 10px 0;
+}
+
+/* 卡片面板 */
+.panel-card {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.stat-card {
+    flex: 1;
+    min-width: 200px;
+    background: #fff;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card .stat-number {
+    font-size: 28px;
+    font-weight: bold;
+    color: #1E9FFF;
+}
+
+.stat-card .stat-label {
+    color: #999;
+    margin-top: 5px;
+}
+
+.stat-card.primary .stat-number { color: #1E9FFF; }
+.stat-card.success .stat-number { color: #16b777; }
+.stat-card.warning .stat-number { color: #FFB800; }
+.stat-card.danger .stat-number { color: #FF5722; }
+
+/* 详情展示 */
+.detail-table td {
+    padding: 8px 15px;
+}
+
+.detail-table .label {
+    color: #999;
+    width: 100px;
+    text-align: right;
+    font-weight: normal;
+}
+
+/* 响应式 */
+@media screen and (max-width: 768px) {
+    .stat-cards {
+        flex-direction: column;
+    }
+    .stat-card {
+        min-width: auto;
+    }
+}

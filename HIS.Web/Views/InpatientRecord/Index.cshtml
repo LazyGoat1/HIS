@@ -1,0 +1,89 @@
+@{
+    ViewData["Title"] = "入院登记";
+    ViewData["Module"] = "住院管理 / 入院登记";
+}
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="住院号 / 患者姓名" class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="status">
+                        <option value="">全部状态</option>
+                        <option value="1">在院</option>
+                        <option value="2">出院</option>
+                        <option value="3">转科</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate"><i class="layui-icon layui-icon-add-1"></i> 入院登记</button>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer;
+            form.render();
+            table.render({
+                elem: '#dataTable', url: '/InpatientRecord/GetList', page: true, limit: 10, limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'inpatientNo', title: '住院号', width: 170 },
+                    { field: 'patientName', title: '患者', width: 80 },
+                    { field: 'departmentName', title: '科室', width: 100 },
+                    { field: 'doctorName', title: '主治医生', width: 80 },
+                    { field: 'bedNo', title: '床位', width: 80 },
+                    { field: 'depositAmount', title: '预交金', width: 90, templet: function(d){ return '¥'+formatMoney(d.depositAmount); }},
+                    { field: 'totalCost', title: '总费用', width: 90, templet: function(d){ return '¥'+formatMoney(d.totalCost); }},
+                    { field: 'status', title: '状态', width: 70, templet: function(d){
+                        var m = {1:'<span style="color:#5FB878;">在院</span>',2:'<span style="color:#999;">出院</span>',3:'<span style="color:#FFB800;">转科</span>'};
+                        return m[d.status]||d.status; }},
+                    { field: 'admissionTime', title: '入院时间', width: 160, templet: function(d){ return formatDate(d.admissionTime); }},
+                    { fixed: 'right', title: '操作', width: 200,
+                      templet: function(d){
+                          var btns = '';
+                          if (d.status === 1) {
+                              btns += '<a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="order">医嘱</a>';
+                              btns += '<a class="layui-btn layui-btn-xs" lay-event="nursing">护理</a>';
+                              btns += '<a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="discharge">出院</a>';
+                          } else { btns += '<span style="color:#999;">--</span>'; }
+                          return btns;
+                      }}
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+            form.on('submit(search)', function () { searchTable('dataTable','searchForm'); return false; });
+            $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', { where: {}, page: { curr: 1 } }); });
+            $('#btnCreate').click(function () { openLayer('入院登记', '/InpatientRecord/Create', '750px', '550px'); });
+            table.on('tool(dataTable)', function (obj) {
+                if (obj.event === 'discharge' && obj.data.status === 1) {
+                    layer.prompt({ title: '出院诊断', formType: 2 }, function (text, idx) {
+                        layer.close(idx);
+                        handlePost('/InpatientRecord/Discharge', { id: obj.data.id, diagnosis: text }, '出院结算完成', function () { table.reload('dataTable'); });
+                    });
+                } else if (obj.event === 'order') {
+                    openLayer('医嘱管理 - ' + obj.data.patientName, '/MedicalOrder/Create?inpatientId=' + obj.data.id, '700px', '450px');
+                } else if (obj.event === 'nursing') {
+                    openLayer('护理记录 - ' + obj.data.patientName, '/NursingRecord/Create?inpatientId=' + obj.data.id, '600px', '400px');
+                }
+            });
+        });
+    </script>
+    <script type="text/html" id="barTpl">
+        {{# if(d.status === 1) { }}
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="order">医嘱</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="discharge">出院</a>
+        {{# } else { }}<span style="color:#999;">--</span>{{# } }}
+    </script>
+}

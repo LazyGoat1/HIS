@@ -1,0 +1,163 @@
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+    1 -- ============================================
+    2 -- 医院管理系统(HIS) - 存储过程
+    3 -- 数据库：SQL Server 2019+
+    4 -- ============================================
+    5
+    6 USE [HospitalDB]
+    7 GO
+    8
+    9 -- ============================================
+   10 -- 1. 日收入报表（按收费类型/支付方式汇总）
+   11 -- ============================================
+   12 IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'sp_GetDailyRevenueReport')
+   13     DROP PROCEDURE sp_GetDailyRevenueReport
+   14 GO
+   15
+   16 CREATE PROCEDURE sp_GetDailyRevenueReport
+   17     @ReportDate DATE = NULL
+   18 AS
+   19 BEGIN
+   20     SET NOCOUNT ON;
+   21     IF @ReportDate IS NULL SET @ReportDate = CAST(GETDATE() AS DATE);
+   22
+   23     -- 按收费类型汇总
+   24     SELECT ChargeType,
+   25            CASE ChargeType WHEN 1 THEN N'挂号费'
+   26                            WHEN 2 THEN N'门诊收费'
+   27                            WHEN 3 THEN N'住院预交'
+   28                            WHEN 4 THEN N'住院结算' END AS TypeName,
+   29            COUNT(*) AS TotalCount,
+   30            SUM(PaidAmount) AS TotalAmount
+   31     FROM ChargeRecord
+   32     WHERE CAST(CreateTime AS DATE) = @ReportDate AND Status = 1
+   33     GROUP BY ChargeType
+   34
+   35     UNION ALL
+   36
+   37     -- 按支付方式汇总
+   38     SELECT 9 AS ChargeType, N'---支付方式---' AS TypeName, NULL, NULL WHERE 1=0  -- 分隔标记
+   39     UNION ALL
+   40     SELECT PaymentMethod + 10,
+   41            CASE PaymentMethod WHEN 1 THEN N'现金' WHEN 2 THEN N'微信'
+   42                               WHEN 3 THEN N'支付宝' WHEN 4 THEN N'银行卡' WHEN 5 THEN N'医保' END,
+   43            COUNT(*), SUM(PaidAmount)
+   44     FROM ChargeRecord
+   45     WHERE CAST(CreateTime AS DATE) = @ReportDate AND Status = 1
+   46     GROUP BY PaymentMethod
+   47
+   48     ORDER BY ChargeType;
+   49 END
+   50 GO
+   51
+   52 -- ============================================
+   53 -- 2. 医生工作量统计（指定日期范围）
+   54 -- ============================================
+   55 IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'sp_GetDoctorWorkload')
+   56     DROP PROCEDURE sp_GetDoctorWorkload
+   57 GO
+   58
+   59 CREATE PROCEDURE sp_GetDoctorWorkload
+   60     @StartDate DATE,
+   61     @EndDate DATE = NULL
+   62 AS
+   63 BEGIN
+   64     SET NOCOUNT ON;
+   65     IF @EndDate IS NULL SET @EndDate = @StartDate;
+   66
+   67     SELECT d.Id AS DoctorId, d.Name AS DoctorName, d.DoctorNo,
+   68            dept.DeptName AS DepartmentName,
+   69            COUNT(r.Id) AS RegistrationCount,
+   70            COUNT(o.Id) AS ConsultationCount,
+   71            COUNT(p.Id) AS PrescriptionCount
+   72     FROM DoctorInfo d
+   73     INNER JOIN SysDepartment dept ON d.DepartmentId = dept.Id
+   74     LEFT JOIN Registration r ON r.DoctorId = d.Id
+   75         AND r.VisitDate BETWEEN @StartDate AND @EndDate
+   76     LEFT JOIN OutpatientRecord o ON o.DoctorId = d.Id
+   77         AND o.VisitTime BETWEEN @StartDate AND @EndDate
+   78     LEFT JOIN Prescription p ON p.DoctorId = d.Id
+   79         AND p.CreateTime BETWEEN @StartDate AND @EndDate
+   80     WHERE d.Status = 1
+   81     GROUP BY d.Id, d.Name, d.DoctorNo, dept.DeptName
+   82     ORDER BY ConsultationCount DESC;
+   83 END
+   84 GO
+   85
+   86 -- ============================================
+   87 -- 3. 库存预警（低于最低库存的药品）
+   88 -- ============================================
+   89 IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'sp_GetDrugStockAlert')
+   90     DROP PROCEDURE sp_GetDrugStockAlert
+   91 GO
+   92
+   93 CREATE PROCEDURE sp_GetDrugStockAlert
+   94 AS
+   95 BEGIN
+   96     SET NOCOUNT ON;
+   97
+   98     SELECT d.Id, d.DrugCode, d.DrugName, d.Specification, d.Unit,
+   99            d.StockQuantity, d.MinStock, d.RetailPrice,
+  100            dc.CategoryName,
+  101            CASE WHEN d.StockQuantity = 0 THEN N'缺货'
+  102                 WHEN d.StockQuantity <= d.MinStock / 2 THEN N'紧急'
+  103                 ELSE N'不足' END AS AlertLevel
+  104     FROM DrugInfo d
+  105     LEFT JOIN DrugCategory dc ON d.CategoryId = dc.Id
+  106     WHERE d.Status = 1 AND d.StockQuantity <= d.MinStock
+  107     ORDER BY d.StockQuantity ASC;
+  108 END
+  109 GO
+  110
+  111 -- ============================================
+  112 -- 4. 科室就诊统计（指定月份）
+  113 -- ============================================
+  114 IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'sp_GetDepartmentVisitStats')
+  115     DROP PROCEDURE sp_GetDepartmentVisitStats
+  116 GO
+  117
+  118 CREATE PROCEDURE sp_GetDepartmentVisitStats
+  119     @YearMonth CHAR(7) = NULL  -- 格式: '2026-06'
+  120 AS
+  121 BEGIN
+  122     SET NOCOUNT ON;
+  123     IF @YearMonth IS NULL SET @YearMonth = FORMAT(GETDATE(), 'yyyy-MM');
+  124
+  125     DECLARE @StartDate DATE = DATEFROMPARTS(LEFT(@YearMonth,4), RIGHT(@YearMonth,2), 1);
+  126     DECLARE @EndDate DATE = DATEADD(DAY, -1, DATEADD(MONTH, 1, @StartDate));
+  127
+  128     SELECT dept.Id AS DeptId, dept.DeptName,
+  129            COUNT(DISTINCT r.Id) AS VisitCount,
+  130            COUNT(DISTINCT o.Id) AS ConsultCount,
+  131            ISNULL(SUM(c.PaidAmount), 0) AS TotalRevenue
+  132     FROM SysDepartment dept
+  133     LEFT JOIN Registration r ON r.DepartmentId = dept.Id
+  134         AND r.VisitDate BETWEEN @StartDate AND @EndDate
+  135     LEFT JOIN OutpatientRecord o ON o.PatientId = r.PatientId
+  136         AND o.VisitTime BETWEEN @StartDate AND @EndDate
+  137     LEFT JOIN ChargeRecord c ON c.PatientId = r.PatientId
+  138         AND c.CreateTime BETWEEN @StartDate AND @EndDate
+  139         AND c.Status = 1
+  140     WHERE dept.Status = 1 AND dept.DeptType = 1  -- 临床科室
+  141     GROUP BY dept.Id, dept.DeptName
+  142     ORDER BY VisitCount DESC;
+  143 END
+  144 GO
+  145
+  146 -- ============================================
+  147 -- 5. 处方发药汇总（指定日期范围，按药品统计）
+  148 -- ============================================
+  149 IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'sp_GetPrescriptionDrugSummary')
+  150     DROP PROCEDURE sp_GetPrescriptionDrugSummary
+  151 GO
+  152
+  153 CREATE PROCEDURE sp_GetPrescriptionDrugSummary
+  154     @StartDate DATE,
+  155     @EndDate DATE = NULL
+  156 AS
+  155     @EndDate DATE = NULL
+  156 AS
+  - 整体测试修复 Bug
+  - 加更多种子数据
+  - 系统配置实际集成（医院名称、默认值等）
+  - 数据权限（科室级隔离）

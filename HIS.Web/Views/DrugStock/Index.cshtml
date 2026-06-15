@@ -1,0 +1,85 @@
+@{
+    ViewData["Title"] = "库存管理";
+    ViewData["Module"] = "药房管理 / 库存管理";
+}
+<div class="page-container">
+    <div class="panel-card" id="lowStockAlert" style="display:none;border-left:4px solid #FF5722;margin-bottom:10px;padding:10px 15px;">
+        <strong style="color:#FF5722;"><i class="layui-icon layui-icon-warning"></i> 库存预警：</strong>
+        <span id="lowStockDrugs" style="color:#666;"></span>
+    </div>
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="药品名称 / 单号" class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="changeType">
+                        <option value="">全部类型</option>
+                        <option value="1">入库</option>
+                        <option value="2">出库</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="startDate" id="startDate" placeholder="开始日期" class="layui-input" style="width:140px;" />
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="endDate" id="endDate" placeholder="结束日期" class="layui-input" style="width:140px;" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="toolbar">
+        <button class="layui-btn" id="btnStockIn"><i class="layui-icon layui-icon-add-1"></i> 药品入库</button>
+        <button class="layui-btn layui-btn-warm" id="btnStockOut"><i class="layui-icon layui-icon-subtract"></i> 药品出库</button>
+        <button class="layui-btn" id="btnStockCheck"><i class="layui-icon layui-icon-edit"></i> 库存盘点</button>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+<script>
+    layui.use(['table','form','layer','laydate'], function () {
+        var table = layui.table, form = layui.form, layer = layui.layer, laydate = layui.laydate;
+        laydate.render({ elem: '#startDate', format: 'yyyy-MM-dd' });
+        laydate.render({ elem: '#endDate', format: 'yyyy-MM-dd' });
+        form.render();
+
+        // 加载库存预警
+        $.get('/Drug/GetLowStock', function (res) {
+            if (res.code === 0 && res.data && res.data.length > 0) {
+                var names = res.data.map(function(d){ return d.drugName+'('+d.stockQuantity+d.unit+')'; }).join('、');
+                $('#lowStockDrugs').text(names);
+                $('#lowStockAlert').show();
+            }
+        });
+
+        table.render({
+            elem: '#dataTable', url: '/DrugStock/GetList', page: true, limit: 10, limits: [10,15,20,50],
+            cols: [[
+                { field: 'drugName', title: '药品', width: 140 },
+                { field: 'changeType', title: '类型', width: 70,
+                    templet: function(d){ return d.changeType===1?'<span style="color:#5FB878;">入库</span>':'<span style="color:#FF5722;">出库</span>'; }},
+                { field: 'changeQuantity', title: '数量变化', width: 90,
+                    templet: function(d){ return (d.changeType===1?'+':'') + d.changeQuantity; }},
+                { field: 'beforeQuantity', title: '变更前', width: 80 },
+                { field: 'afterQuantity', title: '变更后', width: 80 },
+                { field: 'relatedNo', title: '关联单号', width: 160 },
+                { field: 'remark', title: '备注', minWidth: 120 },
+                { field: 'createTime', title: '操作时间', width: 160, templet: function(d){ return formatDate(d.createTime); }},
+            ]],
+            request: { pageName: 'pageIndex', limitName: 'pageSize' },
+            response: { statusCode: 0, countName: 'total', dataName: 'data' }
+        });
+
+        form.on('submit(search)', function () { searchTable('dataTable','searchForm'); return false; });
+        $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable',{where:{},page:{curr:1}}); });
+        $('#btnStockIn').click(function () { openLayer('药品入库', '/DrugStock/StockIn', '650px', '420px'); });
+        $('#btnStockOut').click(function () { openLayer('药品出库', '/DrugStock/StockOut', '650px', '420px'); });
+        $('#btnStockCheck').click(function () { openLayer('库存盘点', '/DrugStock/StockCheck', '500px', '300px'); });
+    });
+</script>
+}

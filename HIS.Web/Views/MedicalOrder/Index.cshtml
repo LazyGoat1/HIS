@@ -1,0 +1,83 @@
+@{
+    ViewData["Title"] = "医嘱管理";
+    ViewData["Module"] = "住院管理 / 医嘱管理";
+}
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="医嘱内容 / 患者姓名" class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="orderType">
+                        <option value="">全部类型</option>
+                        <option value="1">长期医嘱</option>
+                        <option value="2">临时医嘱</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <select name="status">
+                        <option value="">全部状态</option>
+                        <option value="1">已下达</option>
+                        <option value="2">执行中</option>
+                        <option value="3">已完成</option>
+                        <option value="4">已停止</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer;
+            form.render();
+            table.render({
+                elem: '#dataTable', url: '/MedicalOrder/GetList', page: true, limit: 10, limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'inpatientNo', title: '住院号', width: 160 },
+                    { field: 'patientName', title: '患者', width: 75 },
+                    { field: 'doctorName', title: '医生', width: 75 },
+                    { field: 'orderType', title: '类型', width: 75, templet: function(d){ return d.orderType==1?'<span style="color:#1E9FFF;">长期</span>':'<span style="color:#FFB800;">临时</span>'; }},
+                    { field: 'orderContent', title: '医嘱内容', minWidth: 180 },
+                    { field: 'status', title: '状态', width: 75, templet: function(d){
+                        var m={1:'<span style="color:#1E9FFF;">已下达</span>',2:'<span style="color:#FFB800;">执行中</span>',3:'<span style="color:#5FB878;">已完成</span>',4:'<span style="color:#999;">已停止</span>'};
+                        return m[d.status]||d.status; }},
+                    { field: 'startTime', title: '开始时间', width: 160, templet: function(d){ return formatDate(d.startTime); }},
+                    { field: 'createTime', title: '下达时间', width: 160, templet: function(d){ return formatDate(d.createTime); }},
+                    { fixed: 'right', title: '操作', width: 150, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+            form.on('submit(search)', function () { table.reload('dataTable', { where: form.val('searchForm'), page: { curr: 1 } }); return false; });
+            $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', { where: {}, page: { curr: 1 } }); });
+            table.on('tool(dataTable)', function (obj) {
+                if (obj.event === 'execute' && obj.data.status === 1)
+                    handlePost('/MedicalOrder/Execute', obj.data.id, '医嘱执行成功', function () { location.reload(); });
+                else if (obj.event === 'complete' && (obj.data.status === 1 || obj.data.status === 2))
+                    handlePost('/MedicalOrder/Complete', obj.data.id, '医嘱已完成', function () { location.reload(); });
+                else if (obj.event === 'stop' && obj.data.status !== 3)
+                    handlePost('/MedicalOrder/Stop', obj.data.id, '医嘱已停止', function () { location.reload(); });
+            });
+        });
+    </script>
+    <script type="text/html" id="barTpl">
+        {{# if(d.status === 1) { }}
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="execute">执行</a>
+        {{# } }}
+        {{# if(d.status === 1 || d.status === 2) { }}
+        <a class="layui-btn layui-btn-xs" lay-event="complete">完成</a>
+        {{# } }}
+        {{# if(d.status !== 3 && d.status !== 4) { }}
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="stop">停止</a>
+        {{# } }}
+    </script>
+}

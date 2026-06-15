@@ -1,0 +1,148 @@
+@model HIS.Models.DTOs.DoctorDto
+@{
+    Layout = "_LayoutPopup";
+    var isEdit = Model.Id > 0;
+}
+
+<!--
+    医生表单页（新增/编辑复用）
+    表单字段：工号（只读）、姓名、性别、所属科室、职称、专长、
+             日限号数、诊疗费、状态
+-->
+<form class="layui-form" lay-filter="doctorForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+    <input type="hidden" name="Status" value="@Model.Status" />
+
+    @if (isEdit)
+    {
+        <!-- 编辑模式：工号只读展示 -->
+        <div class="layui-form-item">
+            <label class="layui-form-label">医生工号</label>
+            <div class="layui-input-block">
+                <input type="text" class="layui-input layui-disabled" value="@Model.DoctorNo" disabled />
+            </div>
+        </div>
+    }
+
+    <!-- 姓名 + 性别 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">姓名</label>
+            <div class="layui-input-inline">
+                <input type="text" name="Name" lay-verify="required" lay-reqtext="请输入医生姓名"
+                       class="layui-input" value="@Model.Name" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">性别</label>
+            <div class="layui-input-inline">
+                <input type="radio" name="Gender" value="1" title="男" @(Model.Gender != 0 ? "checked" : "") />
+                <input type="radio" name="Gender" value="0" title="女" @(Model.Gender == 0 ? "checked" : "") />
+            </div>
+        </div>
+    </div>
+
+    <!-- 所属科室 + 职称 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">所属科室</label>
+            <div class="layui-input-inline">
+                <select name="DepartmentId" lay-verify="required" lay-search>
+                    <option value="">请选择科室</option>
+                    @foreach (var dept in (IEnumerable<HIS.Models.DTOs.SysDepartmentDto>)ViewBag.Departments)
+                    {
+                        <option value="@dept.Id" selected="@(dept.Id == Model.DepartmentId)">@dept.DeptName</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">职称</label>
+            <div class="layui-input-inline">
+                <select name="Title" lay-verify="required">
+                    <option value="1" selected="@(Model.Title == 1)">主任医师</option>
+                    <option value="2" selected="@(Model.Title == 2)">副主任医师</option>
+                    <option value="3" selected="@(Model.Title == 3)">主治医师</option>
+                    <option value="4" selected="@(Model.Title == 4)">住院医师</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 专长 -->
+    <div class="layui-form-item">
+        <label class="layui-form-label">专长</label>
+        <div class="layui-input-block">
+            <input type="text" name="Specialty" placeholder="如：心血管内科、消化内科"
+                   class="layui-input" value="@Model.Specialty" />
+        </div>
+    </div>
+
+    <!-- 每日限号 + 诊疗费 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label">每日限号</label>
+            <div class="layui-input-inline">
+                <input type="number" name="MaxDailyPatients" lay-verify="required|number"
+                       class="layui-input" value="@Model.MaxDailyPatients" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">诊疗费(元)</label>
+            <div class="layui-input-inline">
+                <input type="text" name="ConsultationFee" lay-verify="required|number"
+                       class="layui-input" value="@Model.ConsultationFee.ToString("F2")" />
+            </div>
+        </div>
+    </div>
+
+    @if (!isEdit)
+    {
+        <!-- 新增模式提示：系统自动创建登录账号 -->
+        <blockquote class="layui-elem-quote" style="margin:10px 0;color:#5FB878;border-left:5px solid #5FB878;">
+            <i class="layui-icon layui-icon-about"></i> 系统将自动为医生创建登录账号：<br/>
+            <strong>用户名 = 医生工号</strong>，<strong>默认密码 = 123456</strong>，角色 = 医生
+        </blockquote>
+    }
+
+    <div class="layui-form-item" style="text-align:center;margin-top:20px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">
+            <i class="layui-icon layui-icon-ok"></i> 提交保存
+        </button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">取消</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use('form', function () {
+        var form = layui.form;
+
+        form.on('submit(submitForm)', function (data) {
+            var url = parseInt(data.field.Id) > 0 ? '/Doctor/Edit' : '/Doctor/Create';
+
+            var submitData = {
+                Id: data.field.Id ? parseInt(data.field.Id) : 0,
+                Name: data.field.Name,
+                Gender: parseInt(data.field.Gender),
+                DepartmentId: parseInt(data.field.DepartmentId),
+                Title: parseInt(data.field.Title),
+                Specialty: data.field.Specialty || null,
+                MaxDailyPatients: parseInt(data.field.MaxDailyPatients || 50),
+                ConsultationFee: parseFloat(data.field.ConsultationFee || 0),
+                Status: parseInt(data.field.Status || 1)
+            };
+
+            http.post(url, submitData).then(function (res) {
+                handleResponse(res, null, function () { closeLayerAndReload('dataTable'); });
+            });
+            return false;
+        });
+    });
+
+    function closeCurrentLayer() {
+        var index = parent.layer.getFrameIndex(window.name);
+        parent.layer.close(index);
+    }
+</script>
+}

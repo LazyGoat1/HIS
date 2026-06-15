@@ -1,0 +1,49 @@
+@model HIS.Models.DTOs.StockInDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "库存盘点"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <div class="layui-form-item">
+        <label class="layui-form-label required">药品</label>
+        <div class="layui-input-block">
+            <select name="DrugId" lay-verify="required" lay-search id="drugSelect" lay-filter="drugSelected">
+                <option value="">输入药品名称搜索...</option>
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">系统库存</label>
+        <div class="layui-input-block"><input type="text" id="sysStock" class="layui-input layui-disabled" disabled value="--" /></div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">实际库存</label>
+        <div class="layui-input-block"><input type="number" name="Quantity" lay-verify="required|number" class="layui-input" value="0" min="0" /></div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">确认盘点</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="var i=parent.layer.getFrameIndex(window.name);parent.layer.close(i);">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use('form', function () { var form = layui.form;
+        loadDrugs('');
+        function loadDrugs(kw) {
+            $.get('/DrugStock/SearchDrug', { keyword: kw }, function (res) {
+                var items = res && res.data ? res.data : [];
+                var s = $('#drugSelect'); s.empty(); s.append('<option value="">请选择药品...</option>');
+                $.each(items, function (i, d) { s.append('<option value="'+d.id+'" data-stock="'+d.stock+'">'+d.name+' | '+d.code+' | 库存:'+d.stock+d.unit+'</option>'); });
+                form.render('select');
+            });
+        }
+        form.on('select(drugSelected)', function (data) {
+            var opt = data.elem[data.elem.selectedIndex];
+            $('#sysStock').val(opt.getAttribute('data-stock') || '--');
+        });
+        form.on('submit(submitForm)', function (data) {
+            http.post('/DrugStock/StockCheck', { drugId: parseInt(data.field.DrugId)||0, quantity: parseInt(data.field.Quantity)||0 }).then(function (res) {
+                handleResponse(res, null, function () { parent.location.reload(); });
+            });
+            return false;
+        });
+    });
+</script>
+}

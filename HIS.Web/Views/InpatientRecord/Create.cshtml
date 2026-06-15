@@ -1,0 +1,102 @@
+@model HIS.Models.DTOs.InpatientRecordDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "入院登记"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <div class="layui-form-item">
+        <label class="layui-form-label required">患者</label>
+        <div class="layui-input-block">
+            <select name="PatientId" lay-verify="required" lay-search id="patientSelect">
+                <option value="">请输入姓名搜索...</option>
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">科室</label>
+            <div class="layui-input-inline">
+                <select name="DepartmentId" lay-verify="required" lay-filter="deptSelect">
+                    <option value="">请选择科室</option>
+                    @if (ViewBag.Departments != null) { foreach (var d in ViewBag.Departments) { <option value="@d.Id">@d.DeptName</option> } }
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">床位</label>
+            <div class="layui-input-inline">
+                <select name="BedId" id="bedSelect"><option value="">请先选择科室</option></select>
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">入院时间</label>
+            <div class="layui-input-inline">
+                <input type="text" name="AdmissionTime" id="admissionTime" lay-verify="required" class="layui-input" value="@Model.AdmissionTime.ToString("yyyy-MM-dd HH:mm:ss")" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">预交金</label>
+            <div class="layui-input-inline">
+                <input type="number" name="DepositAmount" class="layui-input" value="0" />
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">入院诊断</label>
+        <div class="layui-input-block">
+            <textarea name="AdmissionDiagnosis" placeholder="入院诊断" class="layui-textarea" style="min-height:50px;"></textarea>
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm"><i class="layui-icon layui-icon-ok"></i> 确认入院</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use(['form', 'laydate'], function () {
+        var form = layui.form, laydate = layui.laydate;
+        laydate.render({ elem: '#admissionTime', type: 'datetime', format: 'yyyy-MM-dd HH:mm:ss' });
+
+        // 预加载最近患者列表
+        loadPatientList('');
+
+        var timer;
+        $(document).on('input', '#patientSelect + .layui-form-select .layui-select-title input', function () {
+            var kw = this.value; clearTimeout(timer);
+            timer = setTimeout(function () { loadPatientList(kw); }, 300);
+        });
+
+        function loadPatientList(kw) {
+            $.get('/InpatientRecord/SearchPatient', { keyword: kw }, function (res) {
+                var items = res && res.data ? res.data : [];
+                var s = $('#patientSelect'); s.empty(); s.append('<option value="">请选择患者...</option>');
+                $.each(items, function (i, item) { s.append('<option value="'+item.id+'">'+item.name+' - '+item.patientNo+'</option>'); });
+                form.render('select');
+            });
+        }
+
+        form.on('select(deptSelect)', function (data) {
+            var s = $('#bedSelect'); s.empty();
+            if (!data.value) { s.append('<option value="">请先选择科室</option>'); form.render('select'); return; }
+            s.append('<option value="">加载中...</option>'); form.render('select');
+            $.get('/InpatientRecord/GetAvailableBeds', { departmentId: data.value }, function (res) {
+                s.empty(); s.append('<option value="">不指定床位</option>');
+                var beds = res && res.data ? res.data : [];
+                $.each(beds, function (i, b) { s.append('<option value="'+b.id+'">'+b.bedNo+' ('+b.roomNo+') ¥'+b.dailyRate+'/天</option>'); });
+                form.render('select');
+            });
+        });
+
+        form.on('submit(submitForm)', function (data) {
+            var submit = { PatientId: parseInt(data.field.PatientId)||0, DepartmentId: parseInt(data.field.DepartmentId)||0,
+                BedId: data.field.BedId ? parseInt(data.field.BedId) : null, AdmissionTime: toISODate(data.field.AdmissionTime),
+                DepositAmount: parseFloat(data.field.DepositAmount)||0, AdmissionDiagnosis: data.field.AdmissionDiagnosis||null };
+            http.post('/InpatientRecord/Create', submit).then(function (res) {
+                handleResponse(res, null, function () { closeLayerAndReload('dataTable'); });
+            });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

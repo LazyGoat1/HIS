@@ -1,0 +1,41 @@
+# Visual Studio 临时文件
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# 编译输出
+bin/
+obj/
+out/
+
+# 发布文件
+publish/
+published/
+
+# NuGet 包
+packages/
+*.nupkg
+
+# 运行时生成
+*.log
+*.cache
+*.tmp
+
+# 测试结果
+TestResults/
+*.trx
+
+# 系统文件
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# 配置文件（包含本地密钥，可选）
+# appsettings.Development.json
+# appsettings.Production.json
+
+# 代码分析
+_ReSharper.Caches/
+*.DotSettings.user

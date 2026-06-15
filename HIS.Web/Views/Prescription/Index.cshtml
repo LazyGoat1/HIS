@@ -1,0 +1,133 @@
+@{
+    ViewData["Title"] = "处方管理";
+    ViewData["Module"] = "门诊管理 / 处方管理";
+}
+
+<div class="page-container">
+    <!-- ====== 搜索栏 ====== -->
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="处方号 / 患者姓名"
+                           class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="prescriptionType">
+                        <option value="">全部类型</option>
+                        <option value="1">西药</option>
+                        <option value="2">中药</option>
+                        <option value="3">检查</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <select name="status">
+                        <option value="">全部状态</option>
+                        <option value="1">已开具</option>
+                        <option value="2">已收费</option>
+                        <option value="3">已发药</option>
+                        <option value="4">已退方</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="startDate" id="startDate"
+                           placeholder="开具日期 从" class="layui-input" style="width:150px;" />
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="endDate" id="endDate"
+                           placeholder="开具日期 至" class="layui-input" style="width:150px;" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== 数据表格 ====== -->
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer', 'laydate'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer, laydate = layui.laydate;
+
+            laydate.render({ elem: '#startDate', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#endDate', format: 'yyyy-MM-dd' });
+            form.render();
+
+            table.render({
+                elem: '#dataTable',
+                url: '/Prescription/GetList',
+                page: true,
+                limit: 10,
+                limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'prescriptionNo', title: '处方号', width: 180 },
+                    { field: 'patientName', title: '患者', width: 85 },
+                    { field: 'doctorName', title: '医生', width: 85 },
+                    { field: 'prescriptionType', title: '类型', width: 70,
+                        templet: function(d) {
+                            var map = { 1: '西药', 2: '<span style="color:#8B4513;">中药</span>', 3: '<span style="color:#1E9FFF;">检查</span>' };
+                            return map[d.prescriptionType] || d.prescriptionType;
+                        }},
+                    { field: 'totalAmount', title: '合计金额', width: 100,
+                        templet: function(d) { return '<span style="color:#FF5722;">¥' + formatMoney(d.totalAmount) + '</span>'; }},
+                    { field: 'status', title: '状态', width: 80,
+                        templet: function(d) {
+                            var map = { 1: '<span style="color:#1E9FFF;">已开具</span>', 2: '<span style="color:#FFB800;">已收费</span>', 3: '<span style="color:#5FB878;">已发药</span>', 4: '<span style="color:#999;">已退方</span>' };
+                            return map[d.status] || d.status;
+                        }},
+                    { field: 'createTime', title: '开具时间', width: 160,
+                        templet: function(d) { return formatDate(d.createTime); }},
+                    { fixed: 'right', title: '操作', width: 140,
+                      templet: function(d){
+                          var btns = '<a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="detail">详情</a>';
+                          if (d.status === 1) btns += '<a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="charge">收费</a>';
+                          else if (d.status === 2) btns += '<a class="layui-btn layui-btn-xs layui-btn-disabled">已收费</a>';
+                          else if (d.status === 3) btns += '<a class="layui-btn layui-btn-xs layui-btn-disabled">已发药</a>';
+                          return btns;
+                      }}
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            form.on('submit(search)', function () {
+                table.reload('dataTable', {
+                    where: form.val('searchForm'),
+                    page: { curr: 1 }
+                });
+                return false;
+            });
+
+            $('#btnReset').click(function () {
+                $('#searchForm')[0].reset();
+                table.reload('dataTable', { where: {}, page: { curr: 1 } });
+            });
+
+            table.on('tool(dataTable)', function (obj) {
+                if (obj.event === 'detail') {
+                    openLayer('处方详情 - ' + obj.data.prescriptionNo,
+                        '/Prescription/Detail/' + obj.data.id, '850px', '550px');
+                } else if (obj.event === 'charge') {
+                    var url = '/Charge/Create?relatedId=' + obj.data.id
+                        + '&patientId=' + obj.data.patientId
+                        + '&amount=' + obj.data.totalAmount
+                        + '&patientName=' + encodeURIComponent(obj.data.patientName || '');
+                    openLayer('处方收费 - ' + obj.data.prescriptionNo, url, '550px', '400px');
+                }
+            });
+        });
+    </script>
+
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="detail">详情</a>
+    </script>
+}

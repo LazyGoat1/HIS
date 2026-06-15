@@ -1,0 +1,49 @@
+@model HIS.Models.DTOs.MedicalOrderDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "下达医嘱"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="InpatientId" value="@Model.InpatientId" />
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">类型</label>
+            <div class="layui-input-inline">
+                <select name="OrderType">
+                    <option value="1">长期医嘱</option>
+                    <option value="2" selected>临时医嘱</option>
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">开始时间</label>
+            <div class="layui-input-inline">
+                <input type="text" name="StartTime" id="startTime" lay-verify="required" class="layui-input" value="@Model.StartTime.ToString("yyyy-MM-dd HH:mm:ss")" />
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">医嘱内容</label>
+        <div class="layui-input-block">
+            <textarea name="OrderContent" lay-verify="required" lay-reqtext="请输入医嘱内容" placeholder="如：头孢呋辛钠 1.5g ivgtt bid" class="layui-textarea" style="min-height:80px;"></textarea>
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm"><i class="layui-icon layui-icon-ok"></i> 下达医嘱</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use(['form', 'laydate'], function () {
+        var form = layui.form, laydate = layui.laydate;
+        laydate.render({ elem: '#startTime', type: 'datetime', format: 'yyyy-MM-dd HH:mm:ss' });
+        form.on('submit(submitForm)', function (data) {
+            var submit = { InpatientId: parseInt(data.field.InpatientId), OrderType: parseInt(data.field.OrderType),
+                StartTime: toISODate(data.field.StartTime), OrderContent: data.field.OrderContent };
+            http.post('/MedicalOrder/Create', submit).then(function (res) {
+                handleResponse(res, null, function () { closeLayerAndReload('dataTable'); });
+            });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

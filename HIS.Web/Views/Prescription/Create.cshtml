@@ -1,0 +1,356 @@
+@model HIS.Models.DTOs.PrescriptionDto
+@{
+    Layout = "_LayoutPopup";
+    ViewData["Title"] = "开具处方";
+    var outpatientRecord = ViewBag.OutpatientRecord as HIS.Models.DTOs.OutpatientRecordDto;
+}
+
+<!--
+    开具处方表单
+    流程：选择处方类型 → 搜索添加药品 → 填写用法用量 → 提交
+-->
+<form class="layui-form" lay-filter="prescriptionForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="OutpatientRecordId" value="@Model.OutpatientRecordId" />
+    <input type="hidden" name="PatientId" value="@Model.PatientId" />
+
+    <!-- 患者信息显示 -->
+    <blockquote class="layui-elem-quote" style="margin:0 0 15px 0;">
+        患者：<strong>@Model.PatientName</strong>
+        @if (outpatientRecord != null)
+        {
+            <span style="margin-left:20px;">诊断：<strong style="color:#FF5722;">@(outpatientRecord.PreliminaryDiagnosis ?? "无")</strong></span>
+        }
+    </blockquote>
+
+    <!-- 处方类型 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">处方类型</label>
+            <div class="layui-input-inline">
+                <select name="PrescriptionType" lay-verify="required" lay-filter="prescriptionType">
+                    <option value="1" selected>西药</option>
+                    <option value="2">中药</option>
+                    <option value="3">检查</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 药品模式（西药/中药） -->
+    <div id="drugMode">
+        <div class="layui-form-item">
+            <label class="layui-form-label">添加药品</label>
+            <div class="layui-input-inline" style="width:250px;">
+                <input type="text" id="drugSearch" placeholder="输入药品名称搜索..."
+                       class="layui-input" autocomplete="off" />
+            </div>
+            <button type="button" class="layui-btn layui-btn-sm" id="btnSearchDrug">
+                <i class="layui-icon layui-icon-search"></i> 搜索
+            </button>
+        </div>
+        <div class="layui-form-item" id="drugResultsRow" style="display:none;">
+            <label class="layui-form-label">选择药品</label>
+            <div class="layui-input-block">
+                <select id="drugResultSelect" lay-filter="drugSelected">
+                    <option value="">请选择药品...</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 检查模式 -->
+    <div class="layui-form-item" id="examMode" style="display:none;">
+        <label class="layui-form-label">搜索检查</label>
+        <div class="layui-input-inline" style="width:300px;">
+            <select name="ExamId" lay-search id="examSelect" lay-filter="examSelected">
+                <option value="">输入名称搜索检查项目...</option>
+            </select>
+        </div>
+        <button type="button" class="layui-btn layui-btn-sm" id="btnAddExam">添加</button>
+    </div>
+
+    <!-- 明细表格 -->
+    <table class="layui-table" lay-size="sm" id="detailTable">
+        <thead id="detailHead">
+            <tr>
+                <th width="160">药品名称</th>
+                <th width="100">规格</th>
+                <th width="60">单位</th>
+                <th width="80">单价</th>
+                <th width="70">数量</th>
+                <th width="80">金额</th>
+                <th width="100">用法</th>
+                <th width="80">用量</th>
+                <th width="80">频次</th>
+                <th width="60">天数</th>
+                <th width="60">操作</th>
+            </tr>
+        </thead>
+        <tbody id="detailBody">
+            <tr id="emptyRow"><td colspan="11" style="text-align:center;color:#999;">暂无药品，请搜索添加</td></tr>
+        </tbody>
+    </table>
+
+    <!-- 总金额 -->
+    <div style="text-align:right;font-size:16px;margin:10px 0;">
+        合计金额：<strong style="color:#FF5722;" id="totalAmount">¥0.00</strong>
+    </div>
+
+    <!-- 备注 -->
+    <div class="layui-form-item">
+        <label class="layui-form-label">备注</label>
+        <div class="layui-input-block">
+            <input type="text" name="Remark" placeholder="用药注意事项等"
+                   class="layui-input" />
+        </div>
+    </div>
+
+    <!-- 提交按钮 -->
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">
+            <i class="layui-icon layui-icon-ok"></i> 提交处方
+        </button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">
+            取消
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use(['form', 'table'], function () {
+        var form = layui.form, $ = layui.$;
+        var detailItems = [];
+        var isExamMode = false;
+
+        // 处方类型切换：药品 ↔ 检查
+        form.on('select(prescriptionType)', function (data) {
+            isExamMode = (parseInt(data.value) === 3);
+            $('#drugMode').toggle(!isExamMode);
+            $('#examMode').toggle(isExamMode);
+            detailItems = [];
+            if (isExamMode) loadExamList('');
+            renderDetailTable();
+        });
+
+        // 加载检查项目到搜索下拉
+        function loadExamList(keyword) {
+            $.get('/ChargeItem/SearchExam', { keyword: keyword || '' }, function (res) {
+                var items = res && res.data ? res.data : [];
+                var s = $('#examSelect'); s.empty(); s.append('<option value="">输入名称搜索检查项目...</option>');
+                $.each(items, function (i, d) {
+                    s.append('<option value="' + d.id + '" data-info=\'' + JSON.stringify(d) + '\'>' + d.category + ' | ' + d.itemName + ' | ¥' + d.unitPrice + '</option>');
+                });
+                form.render('select');
+            });
+        }
+
+        // 检查项目搜索
+        $(document).on('input', '#examSelect + .layui-form-select .layui-select-title input', function () {
+            var kw = this.value;
+            setTimeout(function () { if (kw.length >= 0) loadExamList(kw); }, 300);
+        });
+
+        // 选择检查项目 → 添加
+        form.on('select(examSelected)', function (data) {
+            var opt = data.elem[data.elem.selectedIndex];
+            var infoStr = opt.getAttribute('data-info');
+            if (!infoStr) return;
+            var exam = JSON.parse(infoStr);
+            detailItems.push({
+                itemType: 2, itemId: exam.id, itemName: exam.itemName + ' (' + exam.category + ')',
+                specification: exam.specification || '', unit: exam.unit || '次',
+                unitPrice: exam.unitPrice, quantity: 1, amount: exam.unitPrice,
+                usage: '', dosage: '', frequency: '', days: 1
+            });
+            $('#examSelect').val(''); form.render('select');
+            renderDetailTable();
+        });
+
+        // 添加检查按钮（备用）
+        $('#btnAddExam').click(function () {
+            var selectedVal = $('#examSelect').val();
+            if (!selectedVal) { layer.msg('请先搜索并选择一个检查项目', { icon: 2 }); return; }
+            // trigger select event manually (handled by form.on above)
+        });
+
+        // 预加载药品列表
+        loadDrugList('');
+
+        // 搜索药品
+        $('#btnSearchDrug').click(function () {
+            var keyword = $('#drugSearch').val().trim();
+            loadDrugList(keyword);
+        });
+
+        function loadDrugList(keyword) {
+            $.get('/Prescription/SearchDrug', { keyword: keyword || '' }, function (res) {
+                var select = $('#drugResultSelect');
+                select.empty();
+                select.append('<option value="">请选择药品...</option>');
+                var drugs = res && res.data ? res.data : (res && res.length ? res : []);
+                if (drugs.length) {
+                    $.each(drugs, function (i, d) {
+                        var cat = d.category ? '[' + d.category + '] ' : '';
+                        var label = cat + d.name + ' | ' + (d.specification || '--') + ' | ¥' + d.retailPrice + ' | 库存:' + d.stockQuantity;
+                        select.append('<option value="' + d.id + '" data-info=\'' + JSON.stringify(d) + '\'>' + label + '</option>');
+                    });
+                    $('#drugResultsRow').show();
+                } else {
+                    layer.msg('未找到匹配药品', { icon: 0 });
+                    $('#drugResultsRow').hide();
+                }
+                form.render('select');
+            });
+        }
+
+        // 药品选择事件 - 添加到明细表格
+        form.on('select(drugSelected)', function (data) {
+            var selected = data.elem[data.elem.selectedIndex];
+            var infoStr = selected.getAttribute('data-info');
+            if (!infoStr) return;
+
+            var drug = JSON.parse(infoStr);
+            // 检查是否已添加
+            for (var i = 0; i < detailItems.length; i++) {
+                if (detailItems[i].itemId === drug.id) {
+                    layer.msg('该药品已添加，请修改数量', { icon: 2 });
+                    return;
+                }
+            }
+
+            detailItems.push({
+                itemType: 1, // 药品
+                itemId: drug.id,
+                itemName: drug.name,
+                specification: drug.specification,
+                unit: drug.unit,
+                unitPrice: drug.retailPrice,
+                quantity: 1,
+                amount: drug.retailPrice,
+                usage: '',
+                dosage: '',
+                frequency: '',
+                days: 1
+            });
+
+            renderDetailTable();
+            $('#drugResultSelect').val('');
+            form.render('select');
+        });
+
+        // 渲染明细表格
+        function renderDetailTable() {
+            // 更新表头适应模式
+            var headHtml = isExamMode
+                ? '<tr><th width="250">检查项目</th><th width="80">单位</th><th width="80">单价</th><th width="60">数量</th><th width="80">金额</th><th width="80">操作</th></tr>'
+                : '<tr><th width="160">药品名称</th><th width="100">规格</th><th width="60">单位</th><th width="80">单价</th><th width="70">数量</th><th width="80">金额</th><th width="100">用法</th><th width="80">用量</th><th width="80">频次</th><th width="60">天数</th><th width="60">操作</th></tr>';
+            $('#detailHead').html(headHtml);
+
+            var emptyColspan = isExamMode ? 6 : 11;
+            var emptyMsg = isExamMode ? '暂无检查项目，请添加' : '暂无药品，请搜索添加';
+            var tbody = $('#detailBody');
+            tbody.empty();
+            var total = 0;
+
+            if (detailItems.length === 0) {
+                tbody.append('<tr id="emptyRow"><td colspan="' + emptyColspan + '" style="text-align:center;color:#999;">' + emptyMsg + '</td></tr>');
+            } else {
+                $.each(detailItems, function (i, item) {
+                    item.amount = item.unitPrice * item.quantity;
+                    total += item.amount;
+
+                    var tr = '<tr>';
+                    tr += '<td>' + item.itemName + '<input type="hidden" name="Details[' + i + '].ItemId" value="' + item.itemId + '" />';
+                    tr += '<input type="hidden" name="Details[' + i + '].ItemType" value="' + item.itemType + '" />';
+                    tr += '<input type="hidden" name="Details[' + i + '].ItemName" value="' + item.itemName + '" /></td>';
+                    if (!isExamMode) { tr += '<td>' + (item.specification || '-') + '</td>'; }
+                    tr += '<td>' + (item.unit || '-') + '</td>';
+                    tr += '<td>¥' + formatMoney(item.unitPrice) + '</td>';
+                    tr += '<td><input type="number" class="layui-input qty-input" style="width:55px;height:28px;" value="' + item.quantity + '" min="1" data-idx="' + i + '" /></td>';
+                    tr += '<td>¥' + formatMoney(item.amount) + '</td>';
+                    if (!isExamMode) {
+                        tr += '<td><input type="text" class="layui-input usage-input" style="width:90px;height:28px;" value="' + (item.usage || '') + '" placeholder="如：口服" data-idx="' + i + '" /></td>';
+                        tr += '<td><input type="text" class="layui-input dosage-input" style="width:70px;height:28px;" value="' + (item.dosage || '') + '" placeholder="如：1片" data-idx="' + i + '" /></td>';
+                        tr += '<td><input type="text" class="layui-input freq-input" style="width:70px;height:28px;" value="' + (item.frequency || '') + '" placeholder="如：tid" data-idx="' + i + '" /></td>';
+                        tr += '<td><input type="number" class="layui-input days-input" style="width:55px;height:28px;" value="' + (item.days || 1) + '" min="1" data-idx="' + i + '" /></td>';
+                    }
+                    tr += '<td><button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="removeItem(' + i + ')">删除</button></td>';
+                    tr += '</tr>';
+                    tbody.append(tr);
+                });
+
+                // 绑定输入事件
+                bindDetailEvents();
+            }
+
+            $('#totalAmount').text('¥' + formatMoney(total));
+        }
+
+        function bindDetailEvents() {
+            $('.qty-input, .days-input').off('input').on('input', function () {
+                var idx = parseInt($(this).data('idx'));
+                var val = parseInt($(this).val()) || 1;
+                if ($(this).hasClass('qty-input')) detailItems[idx].quantity = Math.max(1, val);
+                if ($(this).hasClass('days-input')) detailItems[idx].days = Math.max(1, val);
+                renderDetailTable();
+            });
+
+            $('.usage-input').off('input').on('input', function () {
+                detailItems[parseInt($(this).data('idx'))].usage = $(this).val();
+            });
+            $('.dosage-input').off('input').on('input', function () {
+                detailItems[parseInt($(this).data('idx'))].dosage = $(this).val();
+            });
+            $('.freq-input').off('input').on('input', function () {
+                detailItems[parseInt($(this).data('idx'))].frequency = $(this).val();
+            });
+        }
+
+        // 删除明细行
+        window.removeItem = function (idx) {
+            detailItems.splice(idx, 1);
+            renderDetailTable();
+        };
+
+        // 表单提交
+        form.on('submit(submitForm)', function (data) {
+            if (detailItems.length === 0) {
+                layer.msg('请至少添加一个处方项目', { icon: 2 });
+                return false;
+            }
+
+            // 同步最新数据
+            $('.usage-input').each(function () {
+                detailItems[parseInt($(this).data('idx'))].usage = $(this).val();
+            });
+            $('.dosage-input').each(function () {
+                detailItems[parseInt($(this).data('idx'))].dosage = $(this).val();
+            });
+            $('.freq-input').each(function () {
+                detailItems[parseInt($(this).data('idx'))].frequency = $(this).val();
+            });
+
+            var submitData = {
+                OutpatientRecordId: parseInt(data.field.OutpatientRecordId),
+                PatientId: parseInt(data.field.PatientId),
+                PrescriptionType: parseInt(data.field.PrescriptionType),
+                Remark: data.field.Remark || null,
+                Details: detailItems
+            };
+
+            http.post('/Prescription/Create', submitData).then(function (res) {
+                handleResponse(res, null, function () {
+                    closeLayerAndReload('dataTable');
+                });
+            });
+            return false;
+        });
+    });
+
+    function closeCurrentLayer() {
+        var index = parent.layer.getFrameIndex(window.name);
+        parent.layer.close(index);
+    }
+</script>
+}

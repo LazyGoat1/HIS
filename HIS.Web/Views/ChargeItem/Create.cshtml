@@ -1,0 +1,69 @@
+@model HIS.Models.DTOs.ChargeItemDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = Model.Id > 0 ? "编辑检查项目" : "新增检查项目"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">分类</label>
+            <div class="layui-input-inline">
+                <select name="Category">
+                    <option value="CT" selected="@(Model.Category=="CT")">CT</option>
+                    <option value="MRI" selected="@(Model.Category=="MRI")">MRI（磁共振）</option>
+                    <option value="X线(DR)" selected="@(Model.Category=="X线(DR)")">X线（DR）</option>
+                    <option value="超声" selected="@(Model.Category=="超声")">超声（B超/彩超）</option>
+                    <option value="PET-CT" selected="@(Model.Category=="PET-CT")">PET-CT</option>
+                    <option value="核医学" selected="@(Model.Category=="核医学")">核医学</option>
+                    <option value="内镜" selected="@(Model.Category=="内镜")">内镜</option>
+                    <option value="心电" selected="@(Model.Category=="心电")">心电</option>
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">单价</label>
+            <div class="layui-input-inline">
+                <input type="number" name="UnitPrice" lay-verify="required|number" class="layui-input" value="@Model.UnitPrice" step="0.01" />
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">名称</label>
+        <div class="layui-input-block">
+            <input type="text" name="ItemName" lay-verify="required" class="layui-input" value="@Model.ItemName" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label">单位</label>
+            <div class="layui-input-inline"><input type="text" name="Unit" class="layui-input" value="@(Model.Unit??"次")" /></div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">规格备注</label>
+            <div class="layui-input-inline"><input type="text" name="Specification" class="layui-input" value="@Model.Specification" /></div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">说明</label>
+        <div class="layui-input-block"><input type="text" name="Description" class="layui-input" value="@Model.Description" /></div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">提交</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="var i=parent.layer.getFrameIndex(window.name);parent.layer.close(i);">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use('form', function () { var form = layui.form;
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            var url = (parseInt(f.Id)||0) > 0 ? '/ChargeItem/Edit' : '/ChargeItem/Create';
+            http.post(url, { Id: parseInt(f.Id)||0, Category: f.Category, ItemName: f.ItemName,
+                Specification: f.Specification||null, Unit: f.Unit||'次', UnitPrice: parseFloat(f.UnitPrice)||0,
+                Description: f.Description||null }).then(function (res) {
+                handleResponse(res, null, function () { parent.location.reload(); });
+            });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

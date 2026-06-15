@@ -1,0 +1,41 @@
+@model HIS.Models.DTOs.DrugCategoryDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = Model.Id > 0 ? "编辑分类" : (Model.ParentId.HasValue ? "添加子分类" : "新增根分类"); }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+    <input type="hidden" name="ParentId" value="@Model.ParentId" />
+    <div class="layui-form-item">
+        <label class="layui-form-label required">名称</label>
+        <div class="layui-input-block">
+            <input type="text" name="CategoryName" lay-verify="required" class="layui-input" value="@Model.CategoryName" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">排序</label>
+        <div class="layui-input-block">
+            <input type="number" name="SortOrder" class="layui-input" value="@Model.SortOrder" />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm"><i class="layui-icon layui-icon-ok"></i> 提交</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use('form', function () { var form = layui.form;
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            var d = { Id: parseInt(f.Id) || 0, CategoryName: f.CategoryName,
+                ParentId: f.ParentId ? parseInt(f.ParentId) : null, SortOrder: parseInt(f.SortOrder) || 1 };
+            var url = (parseInt(f.Id) || 0) > 0 ? '/DrugCategory/Edit' : '/DrugCategory/Create';
+            http.post(url, d).then(function (res) {
+                handleResponse(res, null, function () {
+                    parent.location.reload();  // 刷新父页面（分类树）
+                });
+            });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

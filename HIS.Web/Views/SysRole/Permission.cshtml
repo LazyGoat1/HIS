@@ -1,0 +1,97 @@
+@{
+    Layout = "_LayoutPopup";
+    var roleId = (long)ViewBag.RoleId;
+    var roleName = (string)ViewBag.RoleName;
+    var menuTree = (string)ViewBag.MenuTree;
+    var checkedIds = (string)ViewBag.CheckedIds;
+}
+
+<div style="padding:15px;">
+    <blockquote class="layui-elem-quote">为角色 <b>@roleName</b> 分配菜单权限</blockquote>
+    <div id="menuTree" class="layui-tree" lay-filter="menuTree"></div>
+    <div style="text-align:center;margin-top:15px;">
+        <button class="layui-btn" id="btnSave">保存权限</button>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    layui.use(['tree'], function () {
+        var tree = layui.tree;
+        var menuData = @Html.Raw(menuTree);
+        var checkedData = @Html.Raw(checkedIds);
+
+        // 构建选中ID集合
+        var checkedSet = new Set(checkedData);
+
+        // 递归标记选中（只勾选叶子菜单节点，目录节点不勾选——避免 Layui 级联导致所有子节点全亮）
+        function markChecked(nodes) {
+            nodes.forEach(function (node) {
+                // 有 href（实际菜单页面）才勾选；目录节点(无href)不设置 checked
+                if (node.href && checkedSet.has(node.id)) node.checked = true;
+                if (node.children && node.children.length > 0) markChecked(node.children);
+            });
+        }
+        markChecked(menuData);
+
+        // 展开所有
+        function expandAll(nodes) {
+            nodes.forEach(function (node) {
+                node.spread = true;
+                if (node.children && node.children.length > 0) expandAll(node.children);
+            });
+        }
+        expandAll(menuData);
+
+        // 渲染树
+        tree.render({
+            elem: '#menuTree',
+            data: menuData,
+            showCheckbox: true,
+            id: 'menuTreeId'
+        });
+
+        // 保存：用 tree.getChecked 获取实时勾选状态（不是初始 menuData）
+        $('#btnSave').click(function () {
+            var checkedNodes = tree.getChecked('menuTreeId');
+            var menuIds = [];
+
+            if (checkedNodes && checkedNodes.length > 0) {
+                // tree.getChecked 可能只返回叶子节点，需递归收集父子
+                var seen = {};
+                function addIds(nodes) {
+                    nodes.forEach(function (n) {
+                        if (!seen[n.id]) { seen[n.id] = true; menuIds.push(n.id); }
+                        if (n.children && n.children.length > 0) addIds(n.children);
+                    });
+                }
+                addIds(checkedNodes);
+            }
+
+            // 如果 tree.getChecked 为空，回退到手动物理勾选收集
+            if (menuIds.length === 0) {
+                var allChecked = $('#menuTree').find('.layui-form-checked');
+                if (allChecked.length === 0) {
+                    layer.confirm('未勾选任何菜单，确定清空该角色的所有菜单权限吗？', function (idx) {
+                        layer.close(idx);
+                        doSave([]);
+                    });
+                    return;
+                }
+            }
+
+            console.log('[权限保存] 勾选菜单ID:', menuIds);
+            doSave(menuIds);
+        });
+
+        function doSave(menuIds) {
+            http.post('/SysRole/SavePermission', { roleId: @roleId, menuIds: menuIds }).then(function (res) {
+                handleResponse(res, null, function () {
+                    var index = parent.layer.getFrameIndex(window.name);
+                    parent.layer.close(index);
+                });
+            });
+        }
+    });
+</script>
+}

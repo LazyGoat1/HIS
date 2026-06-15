@@ -1,0 +1,99 @@
+@{
+    ViewData["Title"] = "菜单管理";
+    ViewData["Module"] = "系统管理 / 菜单管理";
+}
+
+<div class="page-container">
+    <div class="layui-row layui-col-space15">
+        <!-- 左侧菜单树 -->
+        <div class="layui-col-md4">
+            <div class="panel-card">
+                <div style="margin-bottom:10px;">
+                    <button class="layui-btn layui-btn-sm" id="btnAddRoot"><i class="layui-icon layui-icon-add-1"></i> 根目录</button>
+                </div>
+                <div id="menuTree"></div>
+            </div>
+        </div>
+
+        <!-- 右侧详情 -->
+        <div class="layui-col-md8" id="detailPanel">
+            <div class="panel-card" style="text-align:center;color:#999;padding:60px 0;">
+                <p><i class="layui-icon layui-icon-tree" style="font-size:60px;"></i></p>
+                <p>点击左侧菜单节点查看详情或添加子菜单</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['tree', 'layer'], function () {
+            var tree = layui.tree, layer = layui.layer;
+
+            loadTree();
+
+            function loadTree() {
+                http.get('/SysMenu/GetTree').then(function (res) {
+                    if (res.code === 0) {
+                        var data = res.data || [];
+                        // 展开所有节点
+                        function expandAll(nodes) { nodes.forEach(function (n) { n.spread = true; if (n.children) expandAll(n.children); }); }
+                        expandAll(data);
+
+                        tree.render({
+                            elem: '#menuTree',
+                            data: data,
+                            click: function (obj) {
+                                showDetail(obj.data);
+                            },
+                            operate: function (obj) {
+                                var type = obj.type, data = obj.data;
+                                if (type === 'add') {
+                                    openLayer('添加子菜单', '/SysMenu/Create?parentId=' + data.id, '600px', '450px');
+                                } else if (type === 'update') {
+                                    openLayer('编辑菜单', '/SysMenu/Edit/' + data.id, '600px', '450px');
+                                } else if (type === 'del') {
+                                    layer.confirm('确定删除该菜单吗？', function (idx) {
+                                        layer.close(idx);
+                                        http.post('/SysMenu/Delete', data.id).then(function (r) {
+                                            handleResponse(r, null, function () { loadTree(); });
+                                        });
+                                    });
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            $('#btnAddRoot').click(function () { openLayer('添加根目录', '/SysMenu/Create', '600px', '450px'); });
+
+            function showDetail(data) {
+                var html = '<div class="panel-card">';
+                html += '<h3>' + data.title + ' <small style="color:#999;">[' + getTypeName(data) + ']</small></h3>';
+                html += '<table class="layui-table"><tbody>';
+                html += '<tr><td width="80">ID</td><td>' + data.id + '</td></tr>';
+                html += '<tr><td>名称</td><td>' + (data.title || '') + '</td></tr>';
+                html += '<tr><td>URL</td><td>' + (data.href || '-') + '</td></tr>';
+                html += '<tr><td>图标</td><td>' + (data.icon || '-') + '</td></tr>';
+                html += '</tbody></table>';
+                html += '<div style="margin-top:10px;">';
+                html += '<button class="layui-btn layui-btn-sm" onclick="editMenu(' + data.id + ')">编辑</button>';
+                html += '<button class="layui-btn layui-btn-sm layui-btn-normal" onclick="addChild(' + data.id + ')">添加子菜单</button>';
+                html += '</div></div>';
+                $('#detailPanel').html(html);
+            }
+
+            function getTypeName(data) {
+                // menuType is embedded in the data, but MenuTreeViewModel doesn't carry it
+                // We'll use the presence of children/href to infer
+                if (data.href) return '菜单';
+                if (data.children && data.children.length > 0) return '目录';
+                return '按钮';
+            }
+        });
+
+        function editMenu(id) { openLayer('编辑菜单', '/SysMenu/Edit/' + id, '600px', '450px'); }
+        function addChild(parentId) { openLayer('添加子菜单', '/SysMenu/Create?parentId=' + parentId, '600px', '450px'); }
+    </script>
+}

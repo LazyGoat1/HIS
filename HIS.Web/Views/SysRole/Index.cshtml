@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "角色管理";
+    ViewData["Module"] = "系统管理 / 角色管理";
+}
+
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm">
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="角色名称/编码" class="layui-input" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate"><i class="layui-icon layui-icon-add-1"></i> 新增角色</button>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form'], function () {
+            var table = layui.table, form = layui.form;
+            form.render();
+            table.render({
+                elem: '#dataTable', url: '/SysRole/GetList', page: true, limit: 10,
+                cols: [[
+                    { field: 'roleName', title: '角色名称', width: 120 },
+                    { field: 'roleCode', title: '角色编码', width: 150 },
+                    { field: 'description', title: '描述' },
+                    { field: 'sortOrder', title: '排序', width: 80 },
+                    { field: 'status', title: '状态', width: 80, templet: '#statusTpl' },
+                    { field: 'createTime', title: '创建时间', width: 160, templet: function(d){ return formatDate(d.createTime); } },
+                    { fixed: 'right', title: '操作', width: 220, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+            form.on('submit(search)', function () { table.reload('dataTable', { where: form.val('searchForm'), page: { curr: 1 } }); return false; });
+            $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', { where: {}, page: { curr: 1 } }); });
+            $('#btnCreate').click(function () { openLayer('新增角色', '/SysRole/Create', '600px', '400px'); });
+            table.on('tool(dataTable)', function (obj) {
+                if (obj.event === 'edit') openLayer('编辑角色', '/SysRole/Edit/' + obj.data.id, '600px', '400px');
+                else if (obj.event === 'permission') openLayer('分配权限 - ' + obj.data.roleName, '/SysRole/Permission/' + obj.data.id, '500px', '500px');
+                else if (obj.event === 'delete') confirmDelete('/SysRole/Delete', obj.data.id, 'dataTable');
+            });
+        });
+    </script>
+    <script type="text/html" id="statusTpl">{{# if(d.status == 1){ }}<span style="color:#16b777;">启用</span>{{# } else { }}<span style="color:#FF5722;">禁用</span>{{# } }}</script>
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="permission"><i class="layui-icon layui-icon-auz"></i> 权限</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+    </script>
+}

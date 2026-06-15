@@ -1,0 +1,76 @@
+@{
+    ViewData["Title"] = "处方发药";
+    ViewData["Module"] = "药房管理 / 处方发药";
+}
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="处方号 / 患者姓名" class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="prescriptionType">
+                        <option value="">全部类型</option>
+                        <option value="1">西药</option>
+                        <option value="2">中药</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+<script>
+    layui.use(['table','form','layer'], function () {
+        var table = layui.table, form = layui.form, layer = layui.layer;
+        form.render();
+        table.render({
+            elem: '#dataTable', url: '/Dispense/GetList', page: true, limit: 10, limits: [10,15,20,50],
+            cols: [[
+                { field: 'prescriptionNo', title: '处方号', width: 180 },
+                { field: 'patientName', title: '患者', width: 80 },
+                { field: 'doctorName', title: '医生', width: 80 },
+                { field: 'prescriptionType', title: '类型', width: 70,
+                    templet: function(d){ return d.prescriptionType===1?'西药':'<span style="color:#8B4513;">中药</span>'; }},
+                { field: 'totalAmount', title: '金额', width: 90,
+                    templet: function(d){ return '¥'+formatMoney(d.totalAmount); }},
+                { field: 'status', title: '状态', width: 80,
+                    templet: function(d){ var m={1:'已开具',2:'已收费',3:'已发药',4:'已退方'}; return m[d.status]||d.status; }},
+                { field: 'createTime', title: '开具时间', width: 160, templet: function(d){ return formatDate(d.createTime); }},
+                { fixed: 'right', title: '操作', width: 160,
+                  templet: function(d){
+                      var btns = '<a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="detail">详情</a>';
+                      if (d.status === 2) btns += '<a class="layui-btn layui-btn-xs" lay-event="dispense">发药</a>';
+                      else if (d.status === 3) btns += '<a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="return">退药</a>';
+                      return btns;
+                  }}
+            ]],
+            request: { pageName: 'pageIndex', limitName: 'pageSize' },
+            response: { statusCode: 0, countName: 'total', dataName: 'data' }
+        });
+        form.on('submit(search)', function () { table.reload('dataTable', { where: form.val('searchForm'), page:{curr:1} }); return false; });
+        $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', {where:{},page:{curr:1}}); });
+        table.on('tool(dataTable)', function (obj) {
+            if (obj.event === 'detail') openLayer('处方详情', '/Dispense/Detail/'+obj.data.id, '850px', '550px');
+            else if (obj.event === 'dispense') {
+                if (obj.data.status !== 2) { layer.msg('请先完成收费再发药',{icon:2}); return; }
+                layer.confirm('确认发药？发药后将自动扣减库存。', {icon:3,title:'发药确认'}, function(idx){
+                    layer.close(idx);
+                    handlePost('/Dispense/Dispense', obj.data.id, '发药成功', function(){ location.reload(); });
+                });
+            } else if (obj.event === 'return') {
+                layer.confirm('确认退药？退回后库存将恢复。', {icon:3,title:'退药确认'}, function(idx){
+                    layer.close(idx);
+                    handlePost('/Dispense/Return', obj.data.id, '退药成功', function(){ location.reload(); });
+                });
+            }
+        });
+    });
+</script>
+}

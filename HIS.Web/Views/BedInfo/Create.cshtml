@@ -1,0 +1,71 @@
+@model HIS.Models.DTOs.BedInfoDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = Model.Id > 0 ? "编辑床位" : "新增床位"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">科室</label>
+            <div class="layui-input-inline">
+                <select name="DepartmentId" lay-verify="required">
+                    <option value="">请选择</option>
+                    @if (ViewBag.Departments != null) { foreach (var d in ViewBag.Departments) { <option value="@d.Id" selected="@(d.Id==Model.DepartmentId)">@d.DeptName</option> } }
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">床位号</label>
+            <div class="layui-input-inline">
+                <input type="text" name="BedNo" lay-verify="required" class="layui-input" value="@Model.BedNo" />
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">房间号</label>
+            <div class="layui-input-inline">
+                <input type="text" name="RoomNo" lay-verify="required" class="layui-input" value="@Model.RoomNo" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">类型</label>
+            <div class="layui-input-inline">
+                <select name="BedType">
+                    <option value="1" selected="@(Model.BedType==1)">普通</option>
+                    <option value="2" selected="@(Model.BedType==2)">双人间</option>
+                    <option value="3" selected="@(Model.BedType==3)">单人间</option>
+                    <option value="4" selected="@(Model.BedType==4)">VIP</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">日床位费</label>
+        <div class="layui-input-block">
+            <input type="number" name="DailyRate" class="layui-input" value="@Model.DailyRate" />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm"><i class="layui-icon layui-icon-ok"></i> 提交</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use('form', function () { var form = layui.form;
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            var url = (parseInt(f.Id) || 0) > 0 ? '/BedInfo/Edit' : '/BedInfo/Create';
+            http.post(url, {
+                Id: parseInt(f.Id) || 0,
+                BedNo: f.BedNo,
+                RoomNo: f.RoomNo,
+                DepartmentId: parseInt(f.DepartmentId) || 0,
+                BedType: parseInt(f.BedType) || 1,
+                DailyRate: parseFloat(f.DailyRate) || 0
+            }).then(function (res) { handleResponse(res, null, function () { closeLayerAndReload('dataTable'); }); });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

@@ -1,0 +1,181 @@
+@model HIS.Models.DTOs.RegistrationDto
+@{
+    Layout = "_LayoutPopup";
+    ViewData["Title"] = "新增挂号";
+}
+
+<!--
+    新增挂号表单
+    流程：选择患者 → 选择科室 → 选择医生 → 选择挂号类型 → 确认就诊日期 → 提交
+-->
+<form class="layui-form" lay-filter="regForm" style="padding:20px 30px 0 10px;">
+
+    <!-- 患者选择（搜索式下拉） -->
+    <div class="layui-form-item">
+        <label class="layui-form-label required">患者</label>
+        <div class="layui-input-block">
+            <select name="PatientId" lay-verify="required" lay-reqtext="请选择患者"
+                    lay-search lay-filter="patientSelect" id="patientSelect">
+                <option value="">请输入姓名/手机号搜索...</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 科室选择 + 挂号类型 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">科室</label>
+            <div class="layui-input-inline">
+                <select name="DepartmentId" lay-verify="required" lay-reqtext="请选择科室"
+                        lay-filter="deptSelect" id="deptSelect">
+                    <option value="">请选择科室</option>
+                    @if (ViewBag.Departments != null)
+                    {
+                        foreach (var dept in ViewBag.Departments)
+                        {
+                            <option value="@dept.Id">@dept.DeptName</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">类型</label>
+            <div class="layui-input-inline">
+                <select name="RegistrationType">
+                    <option value="1" selected>普通</option>
+                    <option value="2">专家</option>
+                    <option value="3">急诊</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 医生选择 -->
+    <div class="layui-form-item">
+        <label class="layui-form-label required">医生</label>
+        <div class="layui-input-block">
+            <select name="DoctorId" lay-verify="required" lay-reqtext="请选择医生"
+                    id="doctorSelect">
+                <option value="">请先选择科室</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 就诊日期 -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">就诊日期</label>
+            <div class="layui-input-inline">
+                <input type="text" name="VisitDate" id="visitDateInput"
+                       lay-verify="required" placeholder="yyyy-MM-dd"
+                       class="layui-input" value="@Model.VisitDate.ToString("yyyy-MM-dd")" />
+            </div>
+        </div>
+    </div>
+
+    <!-- 提交按钮 -->
+    <div class="layui-form-item" style="text-align:center;margin-top:20px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">
+            <i class="layui-icon layui-icon-ok"></i> 确认挂号
+        </button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">
+            取消
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use(['form', 'laydate'], function () {
+        var form = layui.form, laydate = layui.laydate;
+
+        // 日期选择器
+        laydate.render({
+            elem: '#visitDateInput',
+            format: 'yyyy-MM-dd',
+            min: 'today'  // 只能预约今天及以后
+        });
+
+        // 预加载最近患者列表（打开弹窗即可看到）
+        loadPatientList('');
+
+        // 患者搜索（监听Layui渲染出的搜索输入框）
+        var patientSearchTimer;
+        $(document).on('input', '#patientSelect + .layui-form-select .layui-select-title input', function () {
+            var keyword = this.value;
+            clearTimeout(patientSearchTimer);
+            patientSearchTimer = setTimeout(function () { loadPatientList(keyword); }, 300);
+        });
+
+        function loadPatientList(keyword) {
+            $.get('/Registration/SearchPatient', { keyword: keyword }, function (res) {
+                var items = res && res.data ? res.data : [];
+                var select = $('#patientSelect');
+                select.empty();
+                select.append('<option value="">请选择患者...</option>');
+                if (items.length) {
+                    $.each(items, function (i, item) {
+                        select.append('<option value="' + item.id + '">' + item.name + ' - ' + item.patientNo + '</option>');
+                    });
+                }
+                form.render('select');
+            });
+        }
+
+        // 科室变更时加载对应医生
+        form.on('select(deptSelect)', function (data) {
+            var deptId = data.value;
+            var doctorSelect = $('#doctorSelect');
+            doctorSelect.empty();
+
+            if (!deptId) {
+                doctorSelect.append('<option value="">请先选择科室</option>');
+                form.render('select');
+                return;
+            }
+
+            doctorSelect.append('<option value="">加载中...</option>');
+            form.render('select');
+
+            $.get('/Registration/GetDoctorsByDepartment', { departmentId: deptId }, function (res) {
+                doctorSelect.empty();
+                doctorSelect.append('<option value="">请选择医生</option>');
+                var docs = res && res.data ? res.data : (res && res.length ? res : []);
+                if (docs.length) {
+                    $.each(docs, function (i, d) {
+                        doctorSelect.append('<option value="' + d.id + '">'
+                            + d.name + ' (' + d.title + ') - ¥' + d.fee + '</option>');
+                    });
+                } else {
+                    doctorSelect.append('<option value="">该科室暂无在岗医生</option>');
+                }
+                form.render('select');
+            });
+        });
+
+        // 表单提交
+        form.on('submit(submitForm)', function (data) {
+            var submitData = {
+                PatientId: parseInt(data.field.PatientId) || 0,
+                DepartmentId: parseInt(data.field.DepartmentId) || 0,
+                DoctorId: parseInt(data.field.DoctorId) || 0,
+                RegistrationType: parseInt(data.field.RegistrationType),
+                VisitDate: toISODate(data.field.VisitDate)
+            };
+
+            http.post('/Registration/Create', submitData).then(function (res) {
+                handleResponse(res, null, function () {
+                    closeLayerAndReload('dataTable');
+                });
+            });
+            return false;
+        });
+    });
+
+    function closeCurrentLayer() {
+        var index = parent.layer.getFrameIndex(window.name);
+        parent.layer.close(index);
+    }
+</script>
+}

@@ -1,0 +1,54 @@
+@model HIS.Models.DTOs.PrescriptionDto
+@{ Layout = null; }
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/><title>处方单 @Model.PrescriptionNo</title>
+<style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:SimSun,serif;padding:30px 40px;color:#000}
+    .header{text-align:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:15px}
+    .header h2{font-size:20px;margin-bottom:5px}
+    .header p{font-size:13px;color:#666}
+    .info-table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:14px}
+    .info-table td{padding:4px 8px;border:1px solid #000}
+    .info-table .label{background:#f5f5f5;width:80px;font-weight:bold}
+    .drug-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}
+    .drug-table th,.drug-table td{border:1px solid #000;padding:5px 8px;text-align:center}
+    .drug-table th{background:#f0f0f0}
+    .total{text-align:right;font-size:16px;font-weight:bold;margin:10px 0}
+    .footer{margin-top:20px;display:flex;justify-content:space-between;font-size:14px}
+    .footer div{width:45%}
+    .stamp{text-align:right;color:#999;font-size:13px;margin-top:30px}
+    @@media print{body{padding:20px 30px}.no-print{display:none}}
+</style>
+</head>
+<body>
+<div class="header">
+    <h2>@(Model.PrescriptionType == 3 ? "检查申请单" : "处方笺")</h2>
+    <p>@DateTime.Now.ToString("yyyy年MM月dd日 HH:mm")</p>
+</div>
+<table class="info-table">
+    <tr><td class="label">处方号</td><td>@Model.PrescriptionNo</td><td class="label">患者</td><td>@Model.PatientName</td></tr>
+    <tr><td class="label">医生</td><td>@Model.DoctorName</td><td class="label">类型</td><td>@(Model.PrescriptionType == 1 ? "西药" : Model.PrescriptionType == 2 ? "中药" : "检查")</td></tr>
+</table>
+<table class="drug-table">
+    <thead><tr><th>名称</th><th>规格</th><th>单位</th><th>单价</th><th>数量</th><th>金额</th>@if(Model.PrescriptionType != 3){<th>用法</th><th>用量</th>}</tr></thead>
+    <tbody>
+        @foreach (var d in Model.Details ?? new())
+        {
+        <tr><td>@d.ItemName</td><td>@(d.Specification ?? "-")</td><td>@(d.Unit ?? "-")</td><td>@d.UnitPrice.ToString("F2")</td><td>@d.Quantity</td><td>@d.Amount.ToString("F2")</td>
+            @if (Model.PrescriptionType != 3) {<td>@(d.Usage ?? "")</td><td>@(d.Dosage ?? "")</td>}</tr>
+        }
+    </tbody>
+</table>
+<div class="total">合计：¥@Model.TotalAmount.ToString("F2")</div>
+<div class="footer">
+    <div>医生签名：_______________</div>
+    <div>@(Model.PrescriptionType != 3 ? "药师审核：_______________" : "")</div>
+</div>
+<div class="stamp">医院管理系统 · 处方单</div>
+<div class="no-print" style="text-align:center;margin-top:20px">
+    <button onclick="window.print()" style="padding:10px 30px;font-size:16px;cursor:pointer">🖨 打印</button>
+</div>
+</body>
+</html>

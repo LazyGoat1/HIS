@@ -1,0 +1,58 @@
+@{
+    ViewData["Title"] = "排班管理";
+    ViewData["Module"] = "门诊管理 / 排班管理";
+}
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="医生姓名 / 科室名" class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate"><i class="layui-icon layui-icon-add-1"></i> 新增排班</button>
+        <button class="layui-btn layui-btn-normal" id="btnAuto"><i class="layui-icon layui-icon-component"></i> 智能排班</button>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+<script>
+    layui.use(['table','form'], function () { var table = layui.table, form = layui.form; form.render();
+        table.render({ elem: '#dataTable', url: '/Schedule/GetList', page: true, limit: 10,
+            request: { pageName: 'pageIndex', limitName: 'pageSize' },
+            cols: [[
+                { field: 'doctorName', title: '医生', width: 90 },
+                { field: 'deptName', title: '科室', width: 100 },
+                { field: 'dayOfWeek', title: '星期', width: 80, templet: function(d){
+                    var m=['周日','周一','周二','周三','周四','周五','周六']; return m[d.dayOfWeek]||d.dayOfWeek; }},
+                { field: 'timeSlot', title: '时段', width: 80 },
+                { field: 'maxPatients', title: '限号', width: 70 },
+                { field: 'status', title: '状态', width: 70, templet: function(d){ return d.status===1?'<span style="color:#5FB878;">启用</span>':'<span style="color:#999;">停用</span>'; }},
+                { fixed: 'right', title: '操作', width: 140, templet: function(d){
+                    return '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a> <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>'; }}
+            ]],
+            response: { statusCode: 0, countName: 'total', dataName: 'data' }
+        });
+            form.on('submit(search)', function () { searchTable('dataTable','searchForm'); return false; });
+        $('#btnReset').click(function(){ $('#searchForm')[0].reset(); table.reload('dataTable',{where:{},page:{curr:1}}); });
+        $('#btnCreate').click(function(){ openLayer('新增排班','/Schedule/Create','600px','450px'); });
+            $('#btnAuto').click(function(){
+                layer.confirm('遗传算法将自动生成一周排班（覆盖现有排班），确定继续？', {icon:3,title:'智能排班'}, function(idx){
+                    layer.close(idx);
+                    handlePost('/Schedule/AutoGenerate', {}, '排班生成完成', function(){ location.reload(); });
+                });
+            });
+        table.on('tool(dataTable)', function(obj){
+                    if (obj.event === 'edit') openLayer('编辑排班','/Schedule/Edit/'+obj.data.id,'600px','450px');
+            else if (obj.event === 'delete') confirmDelete('/Schedule/Delete', obj.data.id, 'dataTable');
+        });
+    });
+</script>
+}

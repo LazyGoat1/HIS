@@ -1,0 +1,92 @@
+@model HIS.Models.DTOs.SysDepartmentDto
+@{
+    Layout = "_LayoutPopup";
+}
+
+<form class="layui-form" lay-filter="deptForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+
+    <div class="layui-form-item">
+        <label class="layui-form-label required">科室名称</label>
+        <div class="layui-input-block">
+            <input type="text" name="DeptName" lay-verify="required" class="layui-input" value="@Model.DeptName" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">科室编码</label>
+        <div class="layui-input-block">
+            <input type="text" name="DeptCode" lay-verify="required" class="layui-input" value="@Model.DeptCode" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">科室类型</label>
+        <div class="layui-input-block">
+            <select name="DeptType" lay-verify="required">
+                @foreach (var item in ViewBag.DeptTypes)
+                {
+                    <option value="@item.Value" selected="@(item.Value == Model.DeptType)">@item.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">联系电话</label>
+        <div class="layui-input-block">
+            <input type="text" name="Phone" class="layui-input" value="@Model.Phone" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">位置</label>
+        <div class="layui-input-block">
+            <input type="text" name="Location" class="layui-input" value="@Model.Location" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">描述</label>
+        <div class="layui-input-block">
+            <textarea name="Description" class="layui-textarea">@Model.Description</textarea>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">排序</label>
+        <div class="layui-input-block">
+            <input type="number" name="SortOrder" class="layui-input" value="@Model.SortOrder" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">状态</label>
+        <div class="layui-input-block">
+            <input type="checkbox" name="Status" value="1" lay-skin="switch" lay-text="启用|禁用" @(Model.Status == 1 ? "checked" : "") />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">提交保存</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use('form', function () {
+        var form = layui.form;
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            var url = (parseInt(f.Id) || 0) > 0 ? '/SysDepartment/Edit' : '/SysDepartment/Create';
+            http.post(url, {
+                Id: parseInt(f.Id) || 0,
+                DeptName: f.DeptName,
+                DeptCode: f.DeptCode,
+                ParentId: parseInt(f.ParentId) || null,
+                DeptType: parseInt(f.DeptType) || 1,
+                Phone: f.Phone || null,
+                Location: f.Location || null,
+                Description: f.Description || null,
+                SortOrder: parseInt(f.SortOrder) || 1,
+                Status: parseInt(f.Status) || 1
+            }).then(function (res) {
+                handleResponse(res, null, function () { closeLayerAndReload('dataTable'); });
+            });
+            return false;
+        });
+    });
+</script>
+}

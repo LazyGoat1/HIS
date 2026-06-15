@@ -1,0 +1,183 @@
+@model HIS.Models.DTOs.PatientDto
+@{
+    Layout = "_LayoutPopup";
+    var isEdit = Model.Id > 0;
+    ViewData["Title"] = isEdit ? "编辑患者" : "新增患者";
+}
+
+<!--
+    患者表单页
+    支持新增和编辑两种模式，通过 Model.Id 是否大于 0 判断
+    新增时自动生成患者编号，编辑时编号只读
+-->
+<form class="layui-form" lay-filter="patientForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+
+    <!-- 编辑模式下显示患者编号（只读） -->
+    @if (isEdit)
+    {
+        <div class="layui-form-item">
+            <label class="layui-form-label">患者编号</label>
+            <div class="layui-input-block">
+                <input type="text" class="layui-input layui-disabled" value="@Model.PatientNo" disabled />
+            </div>
+        </div>
+    }
+
+    <!-- 姓名 + 性别（同行） -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">姓名</label>
+            <div class="layui-input-inline">
+                <input type="text" name="Name" lay-verify="required" lay-reqtext="请输入患者姓名"
+                       placeholder="请输入姓名" class="layui-input" value="@Model.Name" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">性别</label>
+            <div class="layui-input-inline">
+                <input type="radio" name="Gender" value="1" title="男" @(Model.Gender != 0 ? "checked" : "") />
+                <input type="radio" name="Gender" value="0" title="女" @(Model.Gender == 0 ? "checked" : "") />
+            </div>
+        </div>
+    </div>
+
+    <!-- 出生日期 + 身份证号（同行） -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label">出生日期</label>
+            <div class="layui-input-inline">
+                <input type="text" name="Birthday" id="birthdayInput"
+                       placeholder="yyyy-MM-dd" class="layui-input"
+                       value="@(Model.Birthday?.ToString("yyyy-MM-dd"))" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">身份证号</label>
+            <div class="layui-input-inline">
+                <input type="text" name="IdCard" placeholder="18位身份证号"
+                       class="layui-input" value="@Model.IdCard"
+                       lay-verify="idcard" maxlength="18" />
+            </div>
+        </div>
+    </div>
+
+    <!-- 手机号 + 血型（同行） -->
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label">手机号</label>
+            <div class="layui-input-inline">
+                <input type="text" name="Phone" placeholder="11位手机号"
+                       class="layui-input" value="@Model.Phone"
+                       lay-verify="phone" maxlength="11" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">血型</label>
+            <div class="layui-input-inline">
+                <select name="BloodType">
+                    <option value="">未知</option>
+                    <option value="A" selected="@(Model.BloodType == "A")">A 型</option>
+                    <option value="B" selected="@(Model.BloodType == "B")">B 型</option>
+                    <option value="AB" selected="@(Model.BloodType == "AB")">AB 型</option>
+                    <option value="O" selected="@(Model.BloodType == "O")">O 型</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 地址 -->
+    <div class="layui-form-item">
+        <label class="layui-form-label">地址</label>
+        <div class="layui-input-block">
+            <input type="text" name="Address" placeholder="请输入联系地址"
+                   class="layui-input" value="@Model.Address" />
+        </div>
+    </div>
+
+    <!-- 过敏史（重要医疗信息） -->
+    <div class="layui-form-item">
+        <label class="layui-form-label">过敏史</label>
+        <div class="layui-input-block">
+            <textarea name="AllergyHistory" placeholder="请输入药物/食物过敏史（如：青霉素过敏、海鲜过敏等），无则填'无'"
+                      class="layui-textarea" style="min-height:60px;">@Model.AllergyHistory</textarea>
+        </div>
+    </div>
+
+    <!-- 提交按钮 -->
+    <div class="layui-form-item" style="text-align:center;margin-top:20px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">
+            <i class="layui-icon layui-icon-ok"></i> 提交保存
+        </button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="closeCurrentLayer()">
+            取消
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use(['form', 'laydate'], function () {
+        var form = layui.form;
+        var laydate = layui.laydate;
+
+        // 日期选择器：选择出生日期
+        laydate.render({
+            elem: '#birthdayInput',
+            format: 'yyyy-MM-dd',
+            // 出生日期不能选未来
+            max: '2099-12-31'
+        });
+
+        // 自定义校验规则
+        form.verify({
+            // 手机号格式校验（非必填，填了就要合法）
+            phone: function (value) {
+                if (value && !/^1[3-9]\d{9}$/.test(value)) {
+                    return '请输入正确的11位手机号';
+                }
+            },
+            // 身份证号格式校验（非必填，填了就要合法）
+            idcard: function (value) {
+                if (value && value.length !== 18) {
+                    return '请输入18位身份证号';
+                }
+                if (value && !/^\d{17}[\dXx]$/.test(value)) {
+                    return '身份证号格式不正确';
+                }
+            }
+        });
+
+        // 表单提交
+        form.on('submit(submitForm)', function (data) {
+            var url = parseInt(data.field.Id) > 0 ? '/Patient/Edit' : '/Patient/Create';
+
+            // 组装提交数据
+            var submitData = {
+                Id: data.field.Id ? parseInt(data.field.Id) : 0,
+                Name: data.field.Name,
+                Gender: parseInt(data.field.Gender),
+                Birthday: toISODate(data.field.Birthday),
+                IdCard: data.field.IdCard || null,
+                Phone: data.field.Phone || null,
+                Address: data.field.Address || null,
+                BloodType: data.field.BloodType || null,
+                AllergyHistory: data.field.AllergyHistory || null
+            };
+
+            http.post(url, submitData).then(function (res) {
+                handleResponse(res, null, function () {
+                    closeLayerAndReload('dataTable');
+                });
+            });
+            return false;
+        });
+    });
+
+    // 关闭当前弹窗
+    function closeCurrentLayer() {
+        var index = parent.layer.getFrameIndex(window.name);
+        parent.layer.close(index);
+    }
+</script>
+}

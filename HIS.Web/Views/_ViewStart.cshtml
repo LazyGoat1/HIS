@@ -1,0 +1,8 @@
+@{
+    // AJAX 无刷新导航时，使用 Mini Layout（渲染 Body + Scripts 节，不套主框架）
+    // 普通请求时，使用完整的主布局（侧边栏+顶栏+内容区）
+    if (Context.Request.Headers["X-No-Layout"] == "true")
+        Layout = "_LayoutAjax";
+    else
+        Layout = "_Layout";
+}

@@ -1,0 +1,65 @@
+@model HIS.Models.DTOs.SysRoleDto
+@{
+    Layout = "_LayoutPopup";
+}
+
+<form class="layui-form" lay-filter="roleForm" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+
+    <div class="layui-form-item">
+        <label class="layui-form-label required">角色名称</label>
+        <div class="layui-input-block">
+            <input type="text" name="RoleName" lay-verify="required" class="layui-input" value="@Model.RoleName" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">角色编码</label>
+        <div class="layui-input-block">
+            <input type="text" name="RoleCode" lay-verify="required" class="layui-input" value="@Model.RoleCode" placeholder="如: admin, doctor" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">描述</label>
+        <div class="layui-input-block">
+            <textarea name="Description" class="layui-textarea">@Model.Description</textarea>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">排序</label>
+        <div class="layui-input-block">
+            <input type="number" name="SortOrder" class="layui-input" value="@Model.SortOrder" />
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">状态</label>
+        <div class="layui-input-block">
+            <input type="checkbox" name="Status" value="1" lay-skin="switch" lay-text="启用|禁用" @(Model.Status == 1 ? "checked" : "") />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">提交保存</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    layui.use('form', function () {
+        var form = layui.form;
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            var url = (parseInt(f.Id) || 0) > 0 ? '/SysRole/Edit' : '/SysRole/Create';
+            http.post(url, {
+                Id: parseInt(f.Id) || 0,
+                RoleName: f.RoleName,
+                RoleCode: f.RoleCode,
+                Description: f.Description || null,
+                SortOrder: parseInt(f.SortOrder) || 1,
+                Status: parseInt(f.Status) || 1
+            }).then(function (res) {
+                handleResponse(res, null, function () { closeLayerAndReload('dataTable'); });
+            });
+            return false;
+        });
+    });
+</script>
+}

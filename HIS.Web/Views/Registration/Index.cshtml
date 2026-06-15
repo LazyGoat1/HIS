@@ -1,0 +1,172 @@
+@{
+    ViewData["Title"] = "挂号管理";
+    ViewData["Module"] = "门诊管理 / 挂号管理";
+}
+
+<div class="page-container">
+    <!-- ====== 搜索栏 ====== -->
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="挂号单号 / 患者姓名"
+                           class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="registrationType">
+                        <option value="">全部类型</option>
+                        <option value="1">普通</option>
+                        <option value="2">专家</option>
+                        <option value="3">急诊</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <select name="status">
+                        <option value="">全部状态</option>
+                        <option value="1">已挂号</option>
+                        <option value="2">已接诊</option>
+                        <option value="3">已退号</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="visitDateStart" id="visitDateStart"
+                           placeholder="就诊日期 从" class="layui-input" style="width:150px;" />
+                </div>
+                <div class="layui-inline">
+                    <input type="text" name="visitDateEnd" id="visitDateEnd"
+                           placeholder="就诊日期 至" class="layui-input" style="width:150px;" />
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== 工具栏 ====== -->
+    @if (!(ViewBag.IsDoctor ?? false))
+    {
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate">
+            <i class="layui-icon layui-icon-add-1"></i> 新增挂号
+        </button>
+    </div>
+    }
+
+    <!-- ====== 数据表格 ====== -->
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer', 'laydate'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer, laydate = layui.laydate;
+
+            // 日期范围选择
+            laydate.render({ elem: '#visitDateStart', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#visitDateEnd', format: 'yyyy-MM-dd' });
+            form.render(); // 初始化下拉框
+
+            // 渲染数据表格
+            table.render({
+                elem: '#dataTable',
+                url: '/Registration/GetList',
+                page: true,
+                limit: 10,
+                limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'registrationNo', title: '挂号单号', width: 180 },
+                    { field: 'patientName', title: '患者', width: 85 },
+                    { field: 'departmentName', title: '科室', width: 100 },
+                    { field: 'doctorName', title: '医生', width: 85 },
+                    { field: 'registrationType', title: '类型', width: 70,
+                        templet: function(d) {
+                            var map = { 1: '普通', 2: '<span style="color:#FFB800;">专家</span>', 3: '<span style="color:#FF5722;">急诊</span>' };
+                            return map[d.registrationType] || d.registrationType;
+                        }},
+                    { field: 'registrationFee', title: '挂号费', width: 80,
+                        templet: function(d) { return '¥' + formatMoney(d.registrationFee); }},
+                    { field: 'queueNumber', title: '排队号', width: 75 },
+                    { field: 'visitDate', title: '就诊日期', width: 110,
+                        templet: function(d) { return formatDate(d.visitDate, 'yyyy-MM-dd'); }},
+                    { field: 'status', title: '状态', width: 80,
+                        templet: function(d) {
+                            var map = { 1: '<span style="color:#1E9FFF;">已挂号</span>', 2: '<span style="color:#5FB878;">已接诊</span>', 3: '<span style="color:#999;">已退号</span>' };
+                            return map[d.status] || d.status;
+                        }},
+                    { field: 'createTime', title: '挂号时间', width: 160,
+                        templet: function(d) { return formatDate(d.createTime); }},
+                    { fixed: 'right', title: '操作', width: 180,
+                        templet: function(d){
+                            var isDoc = @Json.Serialize(ViewBag.IsDoctor);
+                            if (d.status === 1) {
+                                if (isDoc) return '<a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="consult">接诊</a>';
+                                else return '<a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="refund">退号</a>';
+                            }
+                            return '<span style="color:#999;">--</span>';
+                        }
+                    }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            // 搜索事件
+            form.on('submit(search)', function () {
+                table.reload('dataTable', {
+                    where: form.val('searchForm'),
+                    page: { curr: 1 }
+                });
+                return false;
+            });
+
+            // 重置搜索
+            $('#btnReset').click(function () {
+                $('#searchForm')[0].reset();
+                table.reload('dataTable', { where: {}, page: { curr: 1 } });
+            });
+
+            // 新增挂号（仅非医生角色可见）
+            if (!@Json.Serialize(ViewBag.IsDoctor)) {
+                $('#btnCreate').click(function () {
+                    openLayer('新增挂号', '/Registration/Create', '750px', '520px');
+                });
+            }
+
+            // 行操作按钮
+            table.on('tool(dataTable)', function (obj) {
+                var data = obj.data;
+                if (obj.event === 'consult') {
+                    // 接诊 - 跳转到门诊诊疗页面
+                    if (data.status === 1) {
+                        openLayer('接诊 - ' + data.patientName,
+                            '/OutpatientRecord/Create?registrationId=' + data.id,
+                            '800px', '600px');
+                    } else {
+                        layer.msg('该挂号已接诊或已退号', { icon: 2 });
+                    }
+                } else if (obj.event === 'refund') {
+                    // 退号
+                    if (data.status !== 1) {
+                        layer.msg('当前状态不允许退号', { icon: 2 });
+                        return;
+                    }
+                    layer.confirm('确定要退号吗？挂号费将退还。', {
+                        icon: 3, title: '退号确认'
+                    }, function (idx) {
+                        layer.close(idx);
+                        handlePost('/Registration/Refund', data.id, '退号成功', function () {
+                            table.reload('dataTable');
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+
+}

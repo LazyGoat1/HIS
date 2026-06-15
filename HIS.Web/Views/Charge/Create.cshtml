@@ -1,0 +1,124 @@
+@model HIS.Models.DTOs.ChargeCreateDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "门诊收费";
+   var isFromPrescription = Model.RelatedId.HasValue && Model.RelatedId > 0; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="ChargeType" value="2" />
+    <input type="hidden" name="RelatedId" value="@Model.RelatedId" />
+    @if (isFromPrescription)
+    {
+        <input type="hidden" name="PatientId" value="@Model.PatientId" />
+        <blockquote class="layui-elem-quote" style="margin-bottom:10px;">
+            患者：<strong>@ViewBag.PatientName</strong> &nbsp;|&nbsp; 处方金额：<strong style="color:#FF5722;">¥@Model.TotalAmount.ToString("F2")</strong>
+        </blockquote>
+    }
+    else
+    {
+        <div class="layui-form-item">
+            <label class="layui-form-label required">患者</label>
+            <div class="layui-input-block">
+                <select name="PatientId" lay-verify="required" lay-search id="patientSelect">
+                    <option value="">输入姓名搜索...</option>
+                </select>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">关联处方</label>
+            <div class="layui-input-block">
+                <select name="RelatedId" lay-search id="prescriptionSelect" lay-filter="prescriptionSelected">
+                    <option value="">不关联（单独收费）</option>
+                </select>
+            </div>
+        </div>
+    }
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">应收金额</label>
+            <div class="layui-input-inline">
+                <input type="number" name="TotalAmount" lay-verify="required|number" class="layui-input" value="@Model.TotalAmount" step="0.01" />
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label required">实收金额</label>
+            <div class="layui-input-inline">
+                <input type="number" name="PaidAmount" lay-verify="required|number" class="layui-input" value="@Model.PaidAmount" step="0.01" />
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">支付方式</label>
+        <div class="layui-input-block">
+            <select name="PaymentMethod">
+                <option value="1">现金</option><option value="2">微信</option><option value="3">支付宝</option>
+                <option value="4">银行卡</option><option value="5">医保</option>
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">备注</label>
+        <div class="layui-input-block">
+            <input type="text" name="Remark" class="layui-input" />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">确认收费</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="var i=parent.layer.getFrameIndex(window.name);parent.layer.close(i);">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use('form', function () { var form = layui.form;
+        var timer;
+        $('#patientSelect').parent().find('.layui-select-title input').on('input', function () {
+            var kw = this.value; clearTimeout(timer);
+            if (kw.length < 1) return;
+            timer = setTimeout(function () {
+                $.get('/Charge/SearchPatient', { keyword: kw }, function (res) {
+                    var items = res && res.data ? res.data : [];
+                    var s = $('#patientSelect'); s.empty(); s.append('<option value="">请选择患者...</option>');
+                    $.each(items, function (i, p) { s.append('<option value="'+p.id+'">'+p.name+' - '+p.patientNo+'</option>'); });
+                    form.render('select');
+                });
+            }, 300);
+        });
+
+        $('#prescriptionSelect').parent().find('.layui-select-title input').on('input', function () {
+            var kw = this.value; clearTimeout(timer);
+            if (kw.length < 1) return;
+            timer = setTimeout(function () {
+                $.get('/Charge/SearchPrescription', { keyword: kw }, function (res) {
+                    var items = res && res.data ? res.data : [];
+                    var s = $('#prescriptionSelect'); s.empty(); s.append('<option value="">不关联...</option>');
+                    $.each(items, function (i, p) { s.append('<option value="'+p.id+'" data-amount="'+p.totalAmount+'">'+p.prescriptionNo+' | '+p.patientName+' | ¥'+p.totalAmount+'</option>'); });
+                    form.render('select');
+                });
+            }, 300);
+        });
+
+        // 选处方后自动填金额
+        form.on('select(prescriptionSelected)', function (data) {
+            var opt = data.elem[data.elem.selectedIndex];
+            var amount = opt.getAttribute('data-amount');
+            if (amount) {
+                $('input[name="TotalAmount"]').val(amount);
+                $('input[name="PaidAmount"]').val(amount);
+            }
+        });
+
+        var isFromRx = @Json.Serialize(isFromPrescription);
+
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            var submit = {
+                PatientId: isFromRx ? @Model.PatientId : (parseInt(f.PatientId)||0),
+                ChargeType: 2,
+                RelatedId: isFromRx ? @Model.RelatedId : (f.RelatedId ? parseInt(f.RelatedId) : null),
+                TotalAmount: parseFloat(f.TotalAmount)||0, PaidAmount: parseFloat(f.PaidAmount)||0,
+                PaymentMethod: parseInt(f.PaymentMethod)||1, Remark: f.Remark||null
+            };
+            http.post('/Charge/Create', submit).then(function (res) { handleResponse(res, null, function(){ parent.location.reload(); }); });
+            return false;
+        });
+    });
+    function closeCurrentLayer() { var idx = parent.layer.getFrameIndex(window.name); parent.layer.close(idx); }
+</script>
+}

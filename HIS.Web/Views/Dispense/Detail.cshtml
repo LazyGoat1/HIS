@@ -1,0 +1,39 @@
+@model HIS.Models.DTOs.PrescriptionDto
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "处方详情 - " + Model.PrescriptionNo; }
+<div style="padding:20px 30px;">
+    <fieldset class="layui-elem-field">
+        <legend>处方信息</legend>
+        <div class="layui-field-box">
+            <table class="layui-table" lay-size="sm">
+                <colgroup><col width="90"><col width="200"><col width="90"><col width="200"></colgroup>
+                <tr><td><strong>处方号</strong></td><td style="color:#1E9FFF;">@Model.PrescriptionNo</td>
+                    <td><strong>患者</strong></td><td>@Model.PatientName</td></tr>
+                <tr><td><strong>医生</strong></td><td>@Model.DoctorName</td>
+                    <td><strong>类型</strong></td><td>@(Model.PrescriptionType==1?"西药":"中药")</td></tr>
+                <tr><td><strong>合计金额</strong></td><td style="color:#FF5722;font-size:16px;">¥@Model.TotalAmount.ToString("F2")</td>
+                    <td><strong>开具时间</strong></td><td>@Model.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
+            </table>
+        </div>
+    </fieldset>
+    <fieldset class="layui-elem-field" style="margin-top:15px;">
+        <legend>药品明细</legend>
+        <div class="layui-field-box">
+            <table class="layui-table" lay-size="sm">
+                <thead><tr><th>药品</th><th>规格</th><th>单价</th><th>数量</th><th>金额</th><th>用法用量</th></tr></thead>
+                <tbody>
+                    @if (Model.Details != null && Model.Details.Count > 0) {
+                        foreach (var d in Model.Details) {
+                            <tr><td>@d.ItemName</td><td>@(d.Specification??"-")</td><td>¥@d.UnitPrice.ToString("F2")</td>
+                                <td>@d.Quantity@(d.Unit??"")</td><td>¥@d.Amount.ToString("F2")</td>
+                                <td>@(d.Usage??"") @(d.Dosage??"") @(d.Frequency??"")</td></tr>
+                        }
+                    } else { <tr><td colspan="6" style="text-align:center;color:#999;">无明细</td></tr> }
+                </tbody>
+            </table>
+        </div>
+    </fieldset>
+    <div style="text-align:center;margin-top:20px;">
+        <a class="layui-btn layui-btn-normal" href="/Prescription/Print/@Model.Id" target="_blank"><i class="layui-icon layui-icon-print"></i> 打印</a>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="var i=parent.layer.getFrameIndex(window.name);parent.layer.close(i);">关闭</button>
+    </div>
+</div>

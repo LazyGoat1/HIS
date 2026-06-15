@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - 医院管理系统</title>
+    <link rel="stylesheet" href="~/layui/css/layui.css" />
+    <link rel="stylesheet" href="~/css/common.css" />
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+    <div class="layui-layout layui-layout-admin">
+        <!-- 顶部导航栏 -->
+        <div class="layui-header">
+            <div class="layui-logo layui-hide-xs layui-bg-black">
+                <i class="layui-icon layui-icon-home"></i> 医院管理系统
+            </div>
+            <ul class="layui-nav layui-layout-left layui-hide-xs" lay-filter="topNav"></ul>
+            <ul class="layui-nav layui-layout-right">
+                <li class="layui-nav-item">
+                    <a href="javascript:;">
+                        <img id="currentUserAvatar" src="~/images/avatar-default.png" class="layui-nav-img" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxNSIgY3k9IjEwIiByPSI2IiBmaWxsPSIjY2NjIi8+PGVsbGlwc2UgY3g9IjE1IiBjeT0iMjUiIHJ4PSIxMCIgcnk9IjciIGZpbGw9IiNjY2MiLz48L3N2Zz4='" />
+                        <span id="currentUserName"></span>
+                    </a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="javascript:;" onclick="openLayer('个人信息','/Account/Profile','500px','420px')">个人信息</a></dd>
+                        <dd><a href="javascript:;" onclick="openLayer('修改密码','/Account/ChangePassword','420px','320px')">修改密码</a></dd>
+                        <dd><a href="javascript:;" id="btnLogout">退出登录</a></dd>
+                    </dl>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 侧边栏菜单 -->
+        <div class="layui-side layui-bg-black">
+            <div class="layui-side-scroll">
+                <ul id="sidebarMenu" class="layui-nav layui-nav-tree" lay-filter="sideNav" lay-shrink="all">
+                    <!-- JS动态渲染，不写死 -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- 内容区域（AJAX 无刷新导航的目标容器） -->
+        <div class="layui-body" style="overflow:auto;">
+            <!-- 面包屑 -->
+            <div style="padding:10px 15px 0;">
+                <span class="layui-breadcrumb" lay-separator=">">
+                    <a href="#/Home/Index"><i class="layui-icon layui-icon-home"></i> 首页</a>
+                    <a><cite><span id="breadcrumbTitle">@ViewData["Module"]</span></cite></a>
+                </span>
+            </div>
+            <!-- 内容容器：初次加载用服务端渲染，后续导航用 AJAX 填充 -->
+            <div id="mainContent" style="padding:5px 15px 15px;">
+                @RenderBody()
+            </div>
+        </div>
+
+        <!-- 底部 -->
+        <div class="layui-footer">
+            © 2026 医院管理系统 v1.0
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/layui/layui.js"></script>
+    <script src="~/js/common.js"></script>
+    <script>
+        layui.use(['element', 'jquery', 'layer'], function () {
+            var element = layui.element;
+            var $ = layui.jquery;
+            var layer = layui.layer;
+
+            // ====== 1. 加载侧边栏菜单 ======
+            loadSidebarMenu();
+
+            // ====== 2. 侧边栏点击 → AJAX 无刷新加载内容 ======
+            $('#sidebarMenu').on('click', 'a[data-url]', function () {
+                var $this = $(this);
+                var url = $this.data('url');
+                var title = $this.data('title');
+
+                if (!url) return;
+
+                // history.pushState 替代 hash：URL 干净如 /SysRole/Index
+                // 支持浏览器前进/后退（触发 popstate 事件）
+                if (window.location.pathname !== url) {
+                    history.pushState({ url: url, title: title }, title, url);
+                }
+
+                // AJAX 加载目标页面内容
+                loadPage(url, title);
+            });
+
+            // ====== 3. 浏览器前进/后退时重新加载对应页面 ======
+            $(window).on('popstate', function (e) {
+                var state = e.originalEvent.state;
+                if (state && state.url) {
+                    loadPage(state.url, state.title);
+                } else {
+                    // 无状态时加载当前路径
+                    loadPage(window.location.pathname, null);
+                }
+            });
+
+            // ====== 4. 退出登录 ======
+            $('#btnLogout').click(function () {
+                layer.confirm('确定要退出登录吗？', { icon: 3, title: '提示' }, function (idx) {
+                    layer.close(idx);
+                    window.location.href = '/Account/Logout';
+                });
+            });
+
+            // ====== 5. 显示当前用户名 ======
+            $.get('/Account/GetUserInfo', function (res) {
+                if (res.code === 0 && res.data) {
+                    $('#currentUserName').text(res.data.realName || res.data.userName);
+                    if (res.data.avatar) {
+                        $('#currentUserAvatar').attr('src', res.data.avatar);
+                    }
+                }
+            });
+        });
+
+        /**
+         * AJAX 加载页面内容到 #mainContent
+         * 通过 X-No-Layout 头告诉服务端使用 _LayoutAjax（仅 Body + Scripts）
+         * jQuery .html() 会自动执行响应中的 script 标签
+         */
+        function loadPage(url, title) {
+            if (!url) return;
+
+            $('#mainContent').html('<div style="text-align:center;padding:60px;color:#999;">'
+                + '<i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop"></i> 加载中...</div>');
+
+            $.ajax({
+                url: url,
+                type: 'GET',
+                headers: { 'X-No-Layout': 'true' },
+                dataType: 'html',
+                success: function (html) {
+                    $('#mainContent').html(html);
+
+                    if (title) {
+                        $('#breadcrumbTitle').text(title);
+                        document.title = title + ' - 医院管理系统';
+                    }
+
+                    highlightMenu(url);
+                },
+                error: function (xhr) {
+                    if (xhr.status === 401) {
+                        window.location.href = '/Account/Login';
+                        return;
+                    }
+                    $('#mainContent').html('<div style="text-align:center;padding:60px;color:#FF5722;">'
+                        + '<i class="layui-icon layui-icon-close-fill"></i> 页面加载失败，请重试</div>');
+                }
+            });
+        }
+
+        /**
+         * 根据 URL 高亮侧边栏对应菜单项
+         */
+        function highlightMenu(url) {
+            if (!url) return;
+            var lowerUrl = url.toLowerCase();
+
+            // 清除所有高亮
+            $('#sidebarMenu').find('.layui-this').removeClass('layui-this');
+            $('#sidebarMenu').find('.layui-nav-itemed').removeClass('layui-nav-itemed');
+
+            // 找到匹配的菜单项并高亮
+            $('#sidebarMenu').find('a[data-url]').each(function () {
+                var menuUrl = ($(this).data('url') || '').toLowerCase();
+                if (menuUrl && lowerUrl.indexOf(menuUrl) >= 0) {
+                    $(this).closest('dd').addClass('layui-this');
+                    // 展开父级菜单
+                    $(this).parents('.layui-nav-item').addClass('layui-nav-itemed');
+                }
+            });
+
+            layui.element.render('nav', 'sideNav');
+        }
+
+        /** 加载侧边栏菜单 */
+        function loadSidebarMenu() {
+            $.get('/Account/GetMenus', function (res) {
+                if (res.code === 0 && res.data) {
+                    var html = renderSideMenu(res.data);
+                    $('#sidebarMenu').html(html);
+                    layui.element.render('nav', 'sideNav');
+
+                    // 高亮当前 URL 对应的菜单项
+                    highlightMenu(window.location.pathname);
+                }
+            });
+        }
+
+        /** 渲染侧边栏菜单 HTML */
+        function renderSideMenu(menus) {
+            var html = '';
+
+            if (menus && menus.length > 0) {
+                menus.forEach(function (menu) {
+                    if (menu.child && menu.child.length > 0) {
+                        html += '<li class="layui-nav-item">';
+                        html += '<a href="javascript:;">';
+                        if (menu.icon) html += '<i class="layui-icon ' + menu.icon + '"></i> ';
+                        html += menu.title + '</a><dl class="layui-nav-child">';
+                        menu.child.forEach(function (sub) {
+                            html += '<dd><a href="javascript:;" data-url="' + (sub.href || '') + '" data-title="' + sub.title + '">' + sub.title + '</a></dd>';
+                        });
+                        html += '</dl></li>';
+                    } else {
+                        html += '<li class="layui-nav-item"><a href="javascript:;" data-url="' + (menu.href || '') + '" data-title="' + menu.title + '">';
+                        if (menu.icon) html += '<i class="layui-icon ' + menu.icon + '"></i> ';
+                        html += menu.title + '</a></li>';
+                    }
+                });
+            }
+            return html;
+        }
+    </script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

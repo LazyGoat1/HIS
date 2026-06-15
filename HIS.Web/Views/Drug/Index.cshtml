@@ -1,0 +1,144 @@
+@{
+    ViewData["Title"] = "药品字典";
+    ViewData["Module"] = "基础数据 / 药品字典";
+}
+
+<div class="page-container">
+    <!-- ====== 搜索栏 ====== -->
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" lay-filter="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:0;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="药品名称 / 编码 / 通用名" class="layui-input" style="width:200px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="categoryId" lay-search>
+                        <option value="">全部分类</option>
+                        <!-- JS 动态加载 -->
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== 工具栏 ====== -->
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate">
+            <i class="layui-icon layui-icon-add-1"></i> 新增药品
+        </button>
+        <button class="layui-btn layui-btn-normal" id="btnImport">
+            <i class="layui-icon layui-icon-upload-drag"></i> Excel导入
+        </button>
+        <a href="/Drug/DownloadTemplate" class="layui-btn layui-btn-primary">
+            <i class="layui-icon layui-icon-download-circle"></i> 下载模板
+        </a>
+        <button class="layui-btn layui-btn-primary" id="btnExport">
+            <i class="layui-icon layui-icon-export"></i> 导出Excel
+        </button>
+        <span class="layui-badge layui-bg-orange" id="lowStockBadge" style="display:none;margin-left:10px;cursor:pointer;" title="点击查看库存预警">⚠ 库存预警: <span id="lowStockCount">0</span></span>
+    </div>
+
+    <!-- ====== 数据表格 ====== -->
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+
+@section Scripts {
+    <script>
+        layui.use(['table', 'form'], function () {
+            var table = layui.table, form = layui.form;
+
+            // 加载药品分类下拉
+            http.get('/Drug/GetCategories').then(function (res) {
+                if (res.data) {
+                    var html = '';
+                    res.data.forEach(function (c) { html += '<option value="' + c.id + '">' + c.categoryName + '</option>'; });
+                    $('select[name="categoryId"]').append(html);
+                    form.render('select');
+                }
+            });
+
+            table.render({
+                elem: '#dataTable', url: '/Drug/GetList', page: true, limit: 10,
+                cols: [[
+                    { type: 'checkbox', fixed: 'left' },
+                    { field: 'drugCode', title: '药品编码', width: 120 },
+                    { field: 'drugName', title: '药品名称', width: 140 },
+                    { field: 'genericName', title: '通用名', width: 120 },
+                    { field: 'categoryName', title: '分类', width: 80 },
+                    { field: 'specification', title: '规格', width: 100 },
+                    { field: 'unit', title: '单位', width: 55 },
+                    { field: 'manufacturer', title: '生产厂家', minWidth: 140 },
+                    { field: 'unitPrice', title: '进货价', width: 80, templet: function(d){ return d.unitPrice.toFixed(2); } },
+                    { field: 'retailPrice', title: '零售价', width: 80, templet: function(d){ return d.retailPrice.toFixed(2); } },
+                    { field: 'stockQuantity', title: '库存', width: 65,
+                        templet: function(d){
+                            var cls = d.stockQuantity <= d.minStock ? 'color:#FF5722;font-weight:bold;' : '';
+                            return '<span style="' + cls + '">' + d.stockQuantity + '</span>';
+                        }
+                    },
+                    { field: 'isPrescription', title: '处方药', width: 80, templet: '#rxTpl' },
+                    { field: 'status', title: '状态', width: 65, templet: '#statusTpl' },
+                    { fixed: 'right', title: '操作', width: 180, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+
+            form.on('submit(search)', function () { table.reload('dataTable', { where: form.val('searchForm'), page: { curr: 1 } }); return false; });
+            $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', { where: {}, page: { curr: 1 } }); });
+            $('#btnCreate').click(function () { openLayer('新增药品', '/Drug/Create', '750px', '520px'); });
+        $('#btnExport').click(function () {
+            var checked = table.checkStatus('dataTable').data;
+            var url = '/Drug/Export';
+            if (checked.length) url += '?ids=' + checked.map(function(r){ return r.id; }).join(',');
+            window.open(url);
+        });
+        $('#btnImport').click(function () {
+            layer.open({
+                type: 1, title: 'Excel 导入药品', area: ['450px','250px'],
+                content: '<div style="padding:20px;text-align:center;">'
+                    + '<p style="margin-bottom:15px;">请选择 Excel 文件（.xlsx）</p>'
+                    + '<input type="file" id="importFile" accept=".xlsx" style="margin-bottom:15px;"/>'
+                    + '<br/><button class="layui-btn" onclick="doImport()">开始导入</button></div>'
+            });
+        });
+
+        window.doImport = function () {
+            var file = $('#importFile')[0].files[0];
+            if (!file) { layer.msg('请选择文件'); return; }
+            var fd = new FormData();
+            fd.append('file', file);
+            $.ajax({ url: '/Drug/Import', type: 'POST', data: fd, processData: false, contentType: false,
+                success: function (res) { layer.msg(res.msg || '导入完成'); setTimeout(function(){ location.reload(); }, 1500); },
+                error: function () { layer.msg('导入失败'); }
+            });
+        };
+            table.on('tool(dataTable)', function (obj) {
+                if (obj.event === 'edit') openLayer('编辑药品 - ' + obj.data.drugName, '/Drug/Edit/' + obj.data.id, '750px', '520px');
+                else if (obj.event === 'status') {
+                    var tip = obj.data.status == 1 ? '停用' : '启用';
+                    layer.confirm('确定' + tip + '该药品吗？', function (idx) {
+                        layer.close(idx);
+                        http.post('/Drug/SetStatus', { id: obj.data.id, status: obj.data.status == 1 ? 0 : 1 }).then(function (r) {
+                            handleResponse(r, null, function () { table.reload('dataTable'); });
+                        });
+                    });
+                }
+                else if (obj.event === 'delete') confirmDelete('/Drug/Delete', obj.data.id, 'dataTable');
+            });
+        });
+    </script>
+    <script type="text/html" id="rxTpl">{{# if(d.isPrescription){ }}<span style="color:#FF5722;">处方药</span>{{# } else { }}<span style="color:#16b777;">OTC</span>{{# } }}</script>
+    <script type="text/html" id="statusTpl">{{# if(d.status == 1){ }}<span style="color:#16b777;">启用</span>{{# } else { }}<span style="color:#FF5722;">停用</span>{{# } }}</script>
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="status">{{ d.status == 1 ? '停用' : '启用' }}</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+    </script>
+}

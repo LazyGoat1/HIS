@@ -1,0 +1,76 @@
+@{
+    ViewData["Title"] = "床位管理";
+    ViewData["Module"] = "住院管理 / 床位管理";
+}
+<div class="page-container">
+    <div class="panel-card search-form">
+        <form class="layui-form" id="searchForm" onsubmit="return false;">
+            <div class="layui-form-item" style="margin-bottom:5px;">
+                <div class="layui-inline">
+                    <input type="text" name="keyword" placeholder="床位号 / 房间号" class="layui-input" style="width:180px;" />
+                </div>
+                <div class="layui-inline">
+                    <select name="status">
+                        <option value="">全部状态</option>
+                        <option value="1">空闲</option>
+                        <option value="2">占用</option>
+                        <option value="3">维修</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <select name="bedType">
+                        <option value="">全部类型</option>
+                        <option value="1">普通</option>
+                        <option value="2">双人间</option>
+                        <option value="3">单人间</option>
+                        <option value="4">VIP</option>
+                    </select>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" lay-submit lay-filter="search"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="btnReset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="toolbar">
+        <button class="layui-btn" id="btnCreate"><i class="layui-icon layui-icon-add-1"></i> 新增床位</button>
+    </div>
+    <table id="dataTable" lay-filter="dataTable"></table>
+</div>
+@section Scripts {
+    <script>
+        layui.use(['table', 'form', 'layer'], function () {
+            var table = layui.table, form = layui.form, layer = layui.layer;
+            form.render();
+            table.render({
+                elem: '#dataTable', url: '/BedInfo/GetList', page: true, limit: 10, limits: [10, 15, 20, 50],
+                cols: [[
+                    { field: 'bedNo', title: '床位号', width: 90 },
+                    { field: 'roomNo', title: '房间号', width: 90 },
+                    { field: 'departmentName', title: '科室', width: 100 },
+                    { field: 'bedType', title: '类型', width: 70, templet: function(d){ var m={1:'普通',2:'双人间',3:'单人间',4:'VIP'}; return m[d.bedType]||d.bedType; }},
+                    { field: 'dailyRate', title: '日费用', width: 80, templet: function(d){ return '¥'+formatMoney(d.dailyRate); }},
+                    { field: 'status', title: '状态', width: 70, templet: function(d){
+                        var m={1:'<span style="color:#5FB878;">空闲</span>',2:'<span style="color:#FF5722;">占用</span>',3:'<span style="color:#999;">维修</span>'};
+                        return m[d.status]||d.status; }},
+                    { field: 'createTime', title: '创建时间', width: 160, templet: function(d){ return formatDate(d.createTime); }},
+                    { fixed: 'right', title: '操作', width: 140, toolbar: '#barTpl' }
+                ]],
+                request: { pageName: 'pageIndex', limitName: 'pageSize' },
+                response: { statusCode: 0, countName: 'total', dataName: 'data' }
+            });
+            form.on('submit(search)', function () { table.reload('dataTable', { where: form.val('searchForm'), page: { curr: 1 } }); return false; });
+            $('#btnReset').click(function () { $('#searchForm')[0].reset(); table.reload('dataTable', { where: {}, page: { curr: 1 } }); });
+            $('#btnCreate').click(function () { openLayer('新增床位', '/BedInfo/Create', '650px', '400px'); });
+            table.on('tool(dataTable)', function (obj) {
+                if (obj.event === 'edit') openLayer('编辑床位', '/BedInfo/Edit/'+obj.data.id, '650px', '400px');
+                else if (obj.event === 'delete') confirmDelete('/BedInfo/Delete', obj.data.id, 'dataTable');
+            });
+        });
+    </script>
+    <script type="text/html" id="barTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+    </script>
+}

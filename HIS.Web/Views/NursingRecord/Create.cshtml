@@ -1,0 +1,37 @@
+@model HIS.Models.Entities.NursingRecord
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = "护理记录"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="InpatientId" value="@Model.InpatientId" />
+    <input type="hidden" name="PatientId" value="@Model.PatientId" />
+    <div class="layui-form-item">
+        <label class="layui-form-label required">护理内容</label>
+        <div class="layui-input-block">
+            <textarea name="Content" lay-verify="required" class="layui-textarea" style="min-height:100px;" placeholder="如：测量体温36.5°C，血压120/80，输液500ml..."></textarea>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">记录时间</label>
+        <div class="layui-input-block">
+            <input type="text" name="RecordTime" id="recordTime" class="layui-input" value="@Model.RecordTime.ToString("yyyy-MM-dd HH:mm:ss")" />
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">提交</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="var i=parent.layer.getFrameIndex(window.name);parent.layer.close(i);">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use(['form','laydate'], function () { var form = layui.form, laydate = layui.laydate;
+        laydate.render({ elem: '#recordTime', type: 'datetime', format: 'yyyy-MM-dd HH:mm:ss' });
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field;
+            http.post('/NursingRecord/Create', { InpatientId: parseInt(f.InpatientId)||0, PatientId: parseInt(f.PatientId)||0,
+                Content: f.Content, NurseId: 0, RecordTime: toISODate(f.RecordTime) }).then(function (res) {
+                handleResponse(res, null, function () { parent.location.reload(); });
+            });
+            return false;
+        });
+    });
+</script>
+}

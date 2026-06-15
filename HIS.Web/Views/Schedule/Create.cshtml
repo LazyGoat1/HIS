@@ -1,0 +1,97 @@
+@model HIS.Models.Entities.Schedule
+@{ Layout = "_LayoutPopup"; ViewData["Title"] = Model.Id > 0 ? "编辑排班" : "新增排班"; }
+<form class="layui-form" lay-filter="form" style="padding:20px 30px 0 10px;">
+    <input type="hidden" name="Id" value="@Model.Id" />
+    <div class="layui-form-item">
+        <label class="layui-form-label required">科室</label>
+        <div class="layui-input-block">
+            <select name="DepartmentId" lay-verify="required" lay-filter="deptSelect" id="deptSelect">
+                <option value="">请选择科室</option>
+                @foreach (var dept in (IEnumerable<HIS.Models.Entities.SysDepartment>)ViewBag.Departments)
+                { <option value="@dept.Id" selected="@(dept.Id==Model.DepartmentId)">@dept.DeptName</option> }
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label required">医生</label>
+        <div class="layui-input-block">
+            <select name="DoctorId" lay-verify="required" lay-search lay-filter="doctorSelect" id="doctorSelect">
+                <option value="">请先选择科室</option>
+            </select>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <div class="layui-inline">
+            <label class="layui-form-label required">星期</label>
+            <div class="layui-input-inline">
+                <select name="DayOfWeek">
+                    <option value="1" selected="@(Model.DayOfWeek==1)">周一</option>
+                    <option value="2" selected="@(Model.DayOfWeek==2)">周二</option>
+                    <option value="3" selected="@(Model.DayOfWeek==3)">周三</option>
+                    <option value="4" selected="@(Model.DayOfWeek==4)">周四</option>
+                    <option value="5" selected="@(Model.DayOfWeek==5)">周五</option>
+                    <option value="6" selected="@(Model.DayOfWeek==6)">周六</option>
+                    <option value="0" selected="@(Model.DayOfWeek==0)">周日</option>
+                </select>
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">时段</label>
+            <div class="layui-input-inline">
+                <select name="TimeSlot">
+                    <option value="全天" selected="@(Model.TimeSlot=="全天")">全天</option>
+                    <option value="上午" selected="@(Model.TimeSlot=="上午")">上午</option>
+                    <option value="下午" selected="@(Model.TimeSlot=="下午")">下午</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">限号</label>
+        <div class="layui-input-block"><input type="number" name="MaxPatients" class="layui-input" value="@Model.MaxPatients" /></div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;margin-top:15px;">
+        <button type="button" class="layui-btn" lay-submit lay-filter="submitForm">提交</button>
+        <button type="button" class="layui-btn layui-btn-primary" onclick="var i=parent.layer.getFrameIndex(window.name);parent.layer.close(i);">取消</button>
+    </div>
+</form>
+@section Scripts {
+<script>
+    layui.use('form', function () { var form = layui.form;
+        // 科室→医生
+        var deptDoctors = {};
+        @foreach (var d in (IEnumerable<HIS.Models.Entities.DoctorInfo>)ViewBag.Doctors)
+        { <text>if(!deptDoctors[@d.DepartmentId])deptDoctors[@d.DepartmentId]=[];deptDoctors[@d.DepartmentId].push({id:@d.Id,name:"@d.DoctorNo - @d.Name"});</text> }
+
+        form.on('select(deptSelect)', function (data) {
+            var docs = deptDoctors[parseInt(data.value)] || [];
+            var s = $('#doctorSelect'); s.empty(); s.append('<option value="">请选择医生</option>');
+            $.each(docs, function(i, d){ s.append('<option value="'+d.id+'">'+d.name+'</option>'); });
+            form.render('select');
+        });
+
+        // 编辑模式：预填医生（ID 存 JS 变量，避免 Razor 解析 JS 三元表达式）
+        @if (Model.Id > 0) {
+        <text>
+        var _editDeptId = @Model.DepartmentId;
+        var _editDocId = @Model.DoctorId;
+        setTimeout(function () {
+            $('#deptSelect').val(_editDeptId);
+            form.render('select');
+            var docs = deptDoctors[_editDeptId] || [];
+            var s = $('#doctorSelect'); s.empty(); s.append('<option value="">请选择医生</option>');
+            $.each(docs, function(i, d){ if(d.id==_editDocId)s.append('<option value="'+d.id+'" selected>'+d.name+'</option>');else s.append('<option value="'+d.id+'">'+d.name+'</option>'); });
+            form.render('select');
+        }, 200);
+        </text> }
+
+        form.on('submit(submitForm)', function (data) {
+            var f = data.field; var url = (parseInt(f.Id)||0) > 0 ? '/Schedule/Edit' : '/Schedule/Create';
+            http.post(url, { Id: parseInt(f.Id)||0, DoctorId: parseInt(f.DoctorId)||0, DepartmentId: parseInt(f.DepartmentId)||0, DayOfWeek: parseInt(f.DayOfWeek), TimeSlot: f.TimeSlot, MaxPatients: parseInt(f.MaxPatients)||30, Status: 1 }).then(function (res) {
+                handleResponse(res, null, function () { parent.location.reload(); });
+            });
+            return false;
+        });
+    });
+</script>
+}
